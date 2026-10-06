@@ -17,12 +17,12 @@ contract AppleAttestRegistryV1Test is Test {
         fixture=vm.readFile(path);
         cert=vm.parseJsonBytes(fixture,".cert");auth=vm.parseJsonBytes(fixture,".auth");clientData=vm.parseJsonBytes(fixture,".clientData");kid=vm.parseJsonBytes32(fixture,".kid");
         bytes memory guid=vm.parseJsonBytes(fixture,".aaguid");assembly{sstore(aaguid.slot,shr(128,mload(add(guid,32))))}
-        string memory b=vm.readFile(build);bytes memory cd=vm.parseJsonBytes(b,".cd");bytes memory page0=vm.parseJsonBytes(b,".page0");
-        cds=new CDRegistry();cds.setBuild(cd,page0,vm.parseJsonUint(b,".linkeditCmd"),vm.parseJsonUint(b,".codeSigCmd"));
-        if(register)assertEq(cds.registerBuild(cd,page0),vm.parseJsonBytes32(fixture,".cdhash"));
+        string memory b=vm.readFile(build);bytes memory cd=vm.parseJsonBytes(b,".cd");bytes memory page0=vm.parseJsonBytes(b,".page0");bytes memory ent=vm.parseJsonBytes(b,".ent");
+        cds=new CDRegistry();cds.setBuild(cd,page0,ent,vm.parseJsonUint(b,".linkeditCmd"),vm.parseJsonUint(b,".codeSigCmd"));
+        if(register)assertEq(cds.registerBuild(cd,page0,ent),vm.parseJsonBytes32(fixture,".cdhash"));
         adapter=new AppleAttestRegistryV1(address(this),cds,aaguid,category,ios);
     }
-    function mac(bool register) internal {vm.warp(1789588800);load("fixtures/fresh-apple.json","network/cd-args-macos.json",3,false,register);}
+    function mac(bool register) internal {vm.warp(1789588800);load("fixtures/fresh-apple.json","fixtures/cd-args-probe-macos.json",3,false,register);}
     function iphone(bool register) internal {vm.warp(1790200000);load("fixtures/iphone-apple.json","fixtures/resign/iphone-honest.json",5,true,register);}
     function assertion(string memory name) internal view returns(bytes32 context,bytes memory proof){
         context=sha256(vm.parseJsonBytes(fixture,string.concat(".",name,".context")));
@@ -47,17 +47,17 @@ contract AppleAttestRegistryV1Test is Test {
     }
     function test_IPhoneUnregisteredBuildRejected() public {iphone(false);vm.expectRevert("build not admitted");adapter.enroll(cert,auth,clientData);}
     function withBuild(bytes memory a,bytes32 rp,bytes32 cdhash) internal pure returns(bytes memory){assembly{mstore(add(a,32),rp) mstore(add(a,94),cdhash)}return a;}
+    function jb(string memory j,string memory k) internal pure returns(bytes memory){return vm.parseJsonBytes(j,k);}
+    /// Real cross-team pair (Eigen Developer ID build of Darkbloom, our re-sign): each CDHash resolves only to its own team's RP ID.
     function test_SecondTeamLookup() public {
-        mac(true);Lookup l=new Lookup(cds,aaguid);
-        bytes memory a=vm.parseJsonBytes(fixture,".assert.auth");bytes memory page0=vm.readFileBinary("fixtures/resign/A-original.page0");
-        bytes memory z=vm.readFileBinary("fixtures/resign/A-original.cd");for(uint256 i=116;i<126;i++)z[i]="Z";
-        bytes32 zh=cds.registerBuild(z,page0);bytes32 zrp=sha256("ZZZZZZZZZZ.dev.dsmack.provider");assertEq(cds.rpIdHash(zh),zrp);
-        bytes32 ah=sha256(vm.readFileBinary("fixtures/resign/A-original.cd"));
-        l.check(withBuild(a,zrp,zh));l.check(withBuild(a,OURS,ah));
-        vm.expectRevert("build not admitted");l.check(withBuild(a,OURS,zh));
-        vm.expectRevert("build not admitted");l.check(withBuild(a,zrp,ah));
-        bytes memory dbg=vm.readFileBinary("fixtures/resign/A-original.cd");dbg[0x57]^=0x10;
-        vm.expectRevert("header");cds.registerBuild(dbg,page0);
-        bytes32 dh=sha256(dbg);vm.expectRevert("build not admitted");l.check(withBuild(a,OURS,dh));
+        mac(true);bytes memory a=vm.parseJsonBytes(fixture,".assert.auth");
+        string memory e=vm.readFile("fixtures/resign/darkbloom-eigen.json");string memory o=vm.readFile("fixtures/resign/darkbloom-ours-ent.json");
+        cds=new CDRegistry();cds.setBuild(jb(e,".cd"),jb(e,".page0"),jb(e,".ent"),vm.parseJsonUint(e,".linkeditCmd"),vm.parseJsonUint(e,".codeSigCmd"));
+        bytes32 eh=cds.registerBuild(jb(e,".cd"),jb(e,".page0"),jb(e,".ent"));bytes32 oh=cds.registerBuild(jb(o,".cd"),jb(o,".page0"),jb(o,".ent"));
+        bytes32 erp=sha256("SLDQ2GJ6TL.io.darkbloom.provider");bytes32 orp=sha256("DC9JH5DRMY.io.darkbloom.provider");
+        Lookup l=new Lookup(cds,aaguid);
+        l.check(withBuild(a,erp,eh));l.check(withBuild(a,orp,oh));
+        vm.expectRevert("build not admitted");l.check(withBuild(a,erp,oh));
+        vm.expectRevert("build not admitted");l.check(withBuild(a,orp,eh));
     }
 }

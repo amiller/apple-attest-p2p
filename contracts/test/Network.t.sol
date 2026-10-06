@@ -9,6 +9,8 @@ contract NetworkTest is Test {
     DemoV1 demo;AppleAttestRegistryV1 ios;AppleAttestRegistryV1 mac;
     function setUp() public {
         P256Verifier p=new P256Verifier();vm.etch(address(0x100),address(p).code);
+        vm.setEnv("PRIVATE_KEY","0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
+        vm.setEnv("MAC_BUILD","fixtures/cd-args-probe-macos.json");vm.setEnv("DEPLOY_OUT","network/deploy-test.json");
         (demo,ios,mac)=new Network().run();
     }
     function enroll(AppleAttestRegistryV1 a,string memory f) internal returns(bytes32 kid,string memory j){

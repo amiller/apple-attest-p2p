@@ -8,83 +8,113 @@ contract CDRegistryTest is Test {
     uint256 constant CODESIG = 3608;
     bytes32 constant OURS = 0x90a07dc69293aa64c279caed89cfebd3fde0ad92b510f752ed45ba829157fff6;
     function rd(string memory n, string memory ext) internal view returns (bytes memory) { return vm.readFileBinary(string.concat(D, n, ext)); }
-    function registry(bytes memory cd, bytes memory page0, uint256 linkedit, uint256 codeSig) internal returns (CDRegistry r) {
+    function registry(bytes memory cd, bytes memory page0, bytes memory ent, uint256 linkedit, uint256 codeSig) internal returns (CDRegistry r) {
         r = new CDRegistry();
-        r.setBuild(cd, page0, linkedit, codeSig);
+        r.setBuild(cd, page0, ent, linkedit, codeSig);
     }
-    function mac() internal returns (CDRegistry) { return registry(rd("A-original", ".cd"), rd("A-original", ".page0"), LINKEDIT, CODESIG); }
-    function json(string memory n) internal returns (CDRegistry r, bytes memory cd, bytes memory page0) {
+    function mac() internal returns (CDRegistry) { return registry(rd("A-original", ".cd"), rd("A-original", ".page0"), rd("A-original", ".ent"), LINKEDIT, CODESIG); }
+    function json(string memory n) internal view returns (bytes memory cd, bytes memory page0, bytes memory ent) {
         string memory j = vm.readFile(string.concat(D, n, ".json"));
-        (cd, page0) = (vm.parseJsonBytes(j, ".cd"), vm.parseJsonBytes(j, ".page0"));
-        r = registry(cd, page0, vm.parseJsonUint(j, ".linkeditCmd"), vm.parseJsonUint(j, ".codeSigCmd"));
+        (cd, page0, ent) = (vm.parseJsonBytes(j, ".cd"), vm.parseJsonBytes(j, ".page0"), vm.parseJsonBytes(j, ".ent"));
     }
-    function admit(CDRegistry r, bytes memory cd, bytes memory page0) internal returns (bytes32 h) {
-        h = r.registerBuild(cd, page0);
+    function jsonRegistry(string memory n) internal returns (CDRegistry r) {
+        string memory j = vm.readFile(string.concat(D, n, ".json"));
+        (bytes memory cd, bytes memory page0, bytes memory ent) = json(n);
+        r = registry(cd, page0, ent, vm.parseJsonUint(j, ".linkeditCmd"), vm.parseJsonUint(j, ".codeSigCmd"));
+    }
+    function admit(CDRegistry r, bytes memory cd, bytes memory page0, bytes memory ent) internal returns (bytes32 h) {
+        h = r.registerBuild(cd, page0, ent);
         assertEq(h, sha256(cd));
         assertTrue(r.isAdmitted(h));
     }
+    function file(CDRegistry r, string memory n) internal returns (bytes32) { return admit(r, rd(n, ".cd"), rd(n, ".page0"), rd(n, ".ent")); }
+    /// Real Apple codesign re-signs of the 09-16 probe (data/local-resign-20261005).
     function test_resignFixtures() public {
         CDRegistry r = mac();
-        assertEq(r.rpIdHash(admit(r, rd("A-original", ".cd"), rd("A-original", ".page0"))), OURS);
         assertEq(OURS, sha256("DC9JH5DRMY.dev.dsmack.provider"));
-        string[3] memory hdr = ["B-adhoc", "C-adhoc-otherid", "H-strip-then-adhoc"];
-        for (uint256 i; i < 3; i++) { vm.expectRevert("header"); r.registerBuild(rd(hdr[i], ".cd"), rd(hdr[i], ".page0")); }
-        string[4] memory info = ["D-dev-timestamp", "E-dev-noent", "G-strip-then-dev", "I-dev-resign-same"];
-        for (uint256 i; i < 4; i++) { vm.expectRevert(bytes("info")); r.registerBuild(rd(info[i], ".cd"), rd(info[i], ".page0")); }
-        vm.expectRevert("page0"); r.registerBuild(rd("M-modified", ".cd"), rd("M-modified", ".page0"));
-        bytes memory p = rd("B-adhoc", ".page0"); p[100] ^= 0x01;
-        vm.expectRevert("page0 hash"); r.registerBuild(rd("B-adhoc", ".cd"), p);
+        // Apple Development re-signs, as a bundle (A) or as a loose file whose CD identifier is the
+        // file name (D: with timestamp, G: stripped first, I: plain re-sign). Same code, same entitlements.
+        string[4] memory ok = ["A-original", "D-dev-timestamp", "G-strip-then-dev", "I-dev-resign-same"];
+        for (uint256 i; i < 4; i++) assertEq(r.rpIdHash(file(r, ok[i])), OURS);
+        // No entitlements blob: ad hoc (B, C, H) or signed without entitlements (E). Without the
+        // app-attest-opt-in entitlement the build cannot produce a CDHash attestation for this app.
+        string[4] memory noEnt = ["B-adhoc", "C-adhoc-otherid", "H-strip-then-adhoc", "E-dev-noent"];
+        for (uint256 i; i < 4; i++) { vm.expectRevert("entitlements slot"); r.registerBuild(rd(noEnt[i], ".cd"), rd(noEnt[i], ".page0"), rd(noEnt[i], ".ent")); }
+        // Different code.
+        vm.expectRevert("page0"); r.registerBuild(rd("M-modified", ".cd"), rd("M-modified", ".page0"), rd("M-modified", ".ent"));
+        bytes memory p = rd("A-original", ".page0"); p[100] ^= 0x01;
+        vm.expectRevert("page0 hash"); r.registerBuild(rd("A-original", ".cd"), p, rd("A-original", ".ent"));
     }
     function patched(uint256 at, bytes1 x) internal view returns (bytes memory cd) { cd = rd("A-original", ".cd"); cd[at] ^= x; }
-    function test_signerSlotsFreeHeaderAndInfoPinned() public {
+    function withEnt(bytes memory ent) internal view returns (bytes memory cd) {
+        cd = rd("A-original", ".cd"); bytes32 h = sha256(abi.encodePacked(uint32(0xfade7172), uint32(ent.length + 8), ent));
+        for (uint256 i; i < 32; i++) cd[351 - 224 + i] = h[i];
+    }
+    function test_signerFieldsFreeBehaviorPinned() public {
         CDRegistry r = mac();
         bytes memory page0 = rd("A-original", ".page0");
-        bytes32 h = admit(r, patched(351 - 64, 0x01), page0);
-        assertEq(r.rpIdHash(h), OURS);
-        assertTrue(h != sha256(rd("A-original", ".cd")));
-        vm.expectRevert("header"); r.registerBuild(patched(0x0d, 0x01), page0);
-        vm.expectRevert("header"); r.registerBuild(patched(0x57, 0x10), page0);
-        vm.expectRevert("header"); r.registerBuild(patched(0x5b, 0x01), page0);
-        vm.expectRevert(bytes("info")); r.registerBuild(patched(351 - 1, 0x01), page0);
-        bytes memory cd = rd("A-original", ".cd"); cd[0x33] = 0;
-        vm.expectRevert("no team"); r.registerBuild(cd, page0);
-    }
-    function test_secondTeamGetsItsOwnRpId() public {
-        CDRegistry r = mac();
-        bytes memory cd = rd("A-original", ".cd");
-        for (uint256 i = 116; i < 126; i++) cd[i] = "Z";
-        bytes32 h = admit(r, cd, rd("A-original", ".page0"));
-        assertEq(r.rpIdHash(h), sha256("ZZZZZZZZZZ.dev.dsmack.provider"));
-        assertEq(r.rpIdHash(sha256(rd("A-original", ".cd"))), 0);
+        bytes memory ent = rd("A-original", ".ent");
+        assertEq(r.rpIdHash(admit(r, patched(351 - 1, 0x01), page0, ent)), OURS);    // Info.plist slot
+        assertEq(r.rpIdHash(admit(r, patched(351 - 64, 0x01), page0, ent)), OURS);   // requirements slot
+        vm.expectRevert("header"); r.registerBuild(patched(0x0d, 0x01), page0, ent);  // flags
+        vm.expectRevert("header"); r.registerBuild(patched(0x57, 0x10), page0, ent);  // execSeg flags
+        vm.expectRevert("header"); r.registerBuild(patched(0x5b, 0x01), page0, ent);  // runtime
+        vm.expectRevert("entitlements slot"); r.registerBuild(rd("A-original", ".cd"), page0, bytes.concat(ent, hex"00"));
+        bytes memory e = rd("A-original", ".ent"); e[134] = "X";                       // app-attest-opt-in value
+        bytes memory cd = withEnt(e);
+        vm.expectRevert("entitlements"); r.registerBuild(cd, page0, e);
+        e = rd("A-original", ".ent"); for (uint256 i = 181; i < 191; i++) e[i] = "Z";   // team-identifier value
+        assertEq(r.rpIdHash(admit(r, withEnt(e), page0, e)), OURS);
+        e = rd("A-original", ".ent"); for (uint256 i = 47; i < 57; i++) e[i] = "Z";     // application-identifier value
+        assertEq(r.rpIdHash(admit(r, withEnt(e), page0, e)), sha256("ZZZZZZZZZZ.dev.dsmack.provider"));
     }
     function test_ownerSetsBuildAndOldBuildsStopResolving() public {
         CDRegistry r = mac();
-        bytes32 a = admit(r, rd("A-original", ".cd"), rd("A-original", ".page0"));
-        string memory j = vm.readFile(string.concat(D, "iphone-honest.json"));
-        (bytes memory cd, bytes memory page0) = (vm.parseJsonBytes(j, ".cd"), vm.parseJsonBytes(j, ".page0"));
-        vm.prank(address(1)); vm.expectRevert("owner"); r.setBuild(cd, page0, 2880, 5120);
-        r.setBuild(cd, page0, 2880, 5120);
+        bytes32 a = file(r, "A-original");
+        (bytes memory cd, bytes memory page0, bytes memory ent) = json("iphone-honest");
+        vm.prank(address(1)); vm.expectRevert("owner"); r.setBuild(cd, page0, ent, 2880, 5120);
+        r.setBuild(cd, page0, ent, 2880, 5120);
         assertEq(r.rpIdHash(a), 0);
-        assertEq(r.rpIdHash(admit(r, cd, page0)), OURS);
+        assertEq(r.rpIdHash(admit(r, cd, page0, ent)), OURS);
     }
     function test_iphoneBuild() public {
-        (CDRegistry r, bytes memory cd, bytes memory page0) = json("iphone-honest");
-        bytes32 h = admit(r, cd, page0);
+        CDRegistry r = jsonRegistry("iphone-honest");
+        (bytes memory cd, bytes memory page0, bytes memory ent) = json("iphone-honest");
+        bytes32 h = admit(r, cd, page0, ent);
         assertEq(h, 0x5395bf39ecded47ab804eb78b7f878c246baa4860ca32cad1c63ed468783b591);
         assertEq(r.rpIdHash(h), OURS);
-        string memory j = vm.readFile(string.concat(D, "iphone-modified.json"));
-        vm.expectRevert("code slots"); r.registerBuild(vm.parseJsonBytes(j, ".cd"), vm.parseJsonBytes(j, ".page0"));
+        (cd, page0, ent) = json("iphone-modified");
+        vm.expectRevert("code slots"); r.registerBuild(cd, page0, ent);
     }
+    /// Real cross-team pair: Eigen Labs' Developer ID build of Darkbloom (SLDQ2GJ6TL) and our
+    /// Apple Development re-sign of the same file (DC9JH5DRMY) with team-substituted entitlements.
     function test_darkbloomCrossTeam() public {
-        (CDRegistry r, bytes memory cd, bytes memory page0) = json("darkbloom-eigen");
-        bytes32 h = r.registerBuild(cd, page0);
+        CDRegistry r = jsonRegistry("darkbloom-eigen");
+        (bytes memory cd, bytes memory page0, bytes memory ent) = json("darkbloom-eigen");
+        bytes32 h = r.registerBuild(cd, page0, ent);
         emit log_named_uint("darkbloom-eigen registerBuild exec gas", vm.lastCallGas().gasTotalUsed);
-        emit log_named_uint("calldata bytes", abi.encodeCall(CDRegistry.registerBuild, (cd, page0)).length);
         assertEq(r.rpIdHash(h), sha256("SLDQ2GJ6TL.io.darkbloom.provider"));
-        string memory j = vm.readFile(string.concat(D, "darkbloom-ours.json"));
-        vm.expectRevert(bytes("info")); r.registerBuild(vm.parseJsonBytes(j, ".cd"), vm.parseJsonBytes(j, ".page0"));
+        (cd, page0, ent) = json("darkbloom-ours-ent");
+        bytes32 o = admit(r, cd, page0, ent);
+        assertTrue(o != h);
+        assertEq(r.rpIdHash(o), sha256("DC9JH5DRMY.io.darkbloom.provider"));
+        // Same file re-signed without entitlements: no app-attest opt-in, network or push entitlements.
+        (cd, page0, ent) = json("darkbloom-ours");
+        vm.expectRevert("entitlements slot"); r.registerBuild(cd, page0, ent);
     }
-    function synth(uint256 n) internal pure returns (bytes memory cd, bytes memory page0) {
+    /// The live-run node builds (data/p2p-run-20261006/builds): B = `codesign --force --signature-size 20000` of A.
+    function test_nodeBuilds() public {
+        CDRegistry r = jsonRegistry("node-honest");
+        (bytes memory cd, bytes memory page0, bytes memory ent) = json("node-honest");
+        bytes32 a = admit(r, cd, page0, ent);
+        (cd, page0, ent) = json("node-resigned");
+        bytes32 b = admit(r, cd, page0, ent);
+        assertTrue(a != b);
+        assertEq(r.rpIdHash(b), OURS);
+        (cd, page0, ent) = json("node-modified");
+        vm.expectRevert("code slots"); r.registerBuild(cd, page0, ent);
+    }
+    function synth(uint256 n) internal view returns (bytes memory cd, bytes memory page0) {
         page0 = new bytes(16384);
         for (uint256 i; i < 16384; i++) page0[i] = bytes1(uint8(i * 7 + 1));
         uint256 off = 0x60 + 20 + 11 + 7 * 32;
@@ -93,16 +123,20 @@ contract CDRegistryTest is Test {
         h = bytes.concat(h, new bytes(0x30 - h.length), bytes4(uint32(0x74)), new bytes(0x60 - 0x34), "dev.dsmack.provider\x00DC9JH5DRMY\x00");
         for (uint256 i; i < h.length; i++) cd[i] = h[i];
         cd[0x24] = 0x20; cd[0x25] = 0x02; cd[0x27] = 0x0e;
+        bytes memory ea = vm.readFileBinary(string.concat(D, "A-original.ent"));
+        bytes32 e = sha256(abi.encodePacked(uint32(0xfade7172), uint32(ea.length + 8), ea));
+        for (uint256 i; i < 32; i++) cd[off - 224 + i] = e[i];
         bytes32 s0 = sha256(page0);
         for (uint256 i; i < 32; i++) cd[off + i] = s0[i];
         for (uint256 i = 32; i < 32 * n; i++) cd[off + i] = bytes1(uint8(uint256(keccak256(abi.encode(i / 32))) >> (8 * (i % 32))));
     }
     function measure(uint256 n) internal {
         (bytes memory cd, bytes memory page0) = synth(n);
-        CDRegistry r = registry(cd, page0, LINKEDIT, CODESIG);
-        r.registerBuild(cd, page0);
+        bytes memory ent = rd("A-original", ".ent");
+        CDRegistry r = registry(cd, page0, ent, LINKEDIT, CODESIG);
+        r.registerBuild(cd, page0, ent);
         uint256 exec = vm.lastCallGas().gasTotalUsed;
-        bytes memory d = abi.encodeCall(CDRegistry.registerBuild, (cd, page0));
+        bytes memory d = abi.encodeCall(CDRegistry.registerBuild, (cd, page0, ent));
         uint256 z;
         for (uint256 i; i < d.length; i++) if (d[i] == 0) z++;
         uint256 nz = d.length - z;

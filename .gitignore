@@ -5,3 +5,6 @@ __pycache__/
 .venv/
 build/
 DerivedData/
+contracts/network/deploy-test.json
+node/mac/build/
+node/mac/entitlements.plist

@@ -7,15 +7,18 @@ import {AppleAttestRegistryV1} from "../src/AppleAttestRegistryV1.sol";
 
 /// Apple p2p network: one DemoV1 (admin = deployer) with categories apple-ios and apple-macos,
 /// each an AppleAttestRegistryV1 over its own CDRegistry with the approved build registered.
+/// Env: PRIVATE_KEY (deployer = admin of DemoV1 and both CDRegistries), MAC_BUILD (cd_args.py JSON of the approved Mac build),
+/// DEPLOY_OUT (addresses JSON, under network/).
 contract Network is Script {
     bytes16 constant AAGUID = hex"61707061747465737400000000000000";
     function registry(string memory path) internal returns (CDRegistry r) {
         string memory j = vm.readFile(path);
         bytes memory cd = vm.parseJsonBytes(j, ".cd");
         bytes memory page0 = vm.parseJsonBytes(j, ".page0");
+        bytes memory ent = vm.parseJsonBytes(j, ".ent");
         r = new CDRegistry();
-        r.setBuild(cd, page0, vm.parseJsonUint(j, ".linkeditCmd"), vm.parseJsonUint(j, ".codeSigCmd"));
-        r.registerBuild(cd, page0);
+        r.setBuild(cd, page0, ent, vm.parseJsonUint(j, ".linkeditCmd"), vm.parseJsonUint(j, ".codeSigCmd"));
+        r.registerBuild(cd, page0, ent);
     }
     function category(DemoV1 demo, string memory family, CDRegistry cds, uint32 validation, bool ios) internal returns (AppleAttestRegistryV1 a, bytes32 id) {
         a = new AppleAttestRegistryV1(address(demo), cds, AAGUID, validation, ios);
@@ -24,10 +27,11 @@ contract Network is Script {
     }
     function run() external returns (DemoV1 demo, AppleAttestRegistryV1 ios, AppleAttestRegistryV1 mac) {
         require(block.chainid == 84532 || block.chainid == 31337, "test network only");
-        vm.startBroadcast();
-        (, address deployer,) = vm.readCallers();
+        uint256 key = vm.envUint("PRIVATE_KEY");
+        address deployer = vm.addr(key);
+        vm.startBroadcast(key);
         CDRegistry iosCDs = registry("network/cd-args-ios.json");
-        CDRegistry macCDs = registry("network/cd-args-macos.json");
+        CDRegistry macCDs = registry(vm.envString("MAC_BUILD"));
         demo = new DemoV1(deployer);
         bytes32 iosId; bytes32 macId;
         (ios, iosId) = category(demo, "apple-ios", iosCDs, 5, true);
@@ -45,10 +49,10 @@ contract Network is Script {
         vm.serializeAddress(o, "macAdapter", address(mac));
         vm.serializeBytes32(o, "iosCategory", iosId);
         vm.serializeBytes32(o, "macCategory", macId);
-        vm.serializeString(o, "DemoV1Artifact", "solidity/out/DemoV1.sol/DemoV1.json");
-        vm.serializeString(o, "CDRegistryArtifact", "solidity/out/CDRegistry.sol/CDRegistry.json");
-        string memory out = vm.serializeString(o, "AdapterArtifact", "solidity/out/AppleAttestRegistryV1.sol/AppleAttestRegistryV1.json");
-        string memory path = string.concat("network/deploy-", block.chainid == 84532 ? "base-sepolia" : "anvil", ".json");
+        vm.serializeString(o, "DemoV1Artifact", "out/DemoV1.sol/DemoV1.json");
+        vm.serializeString(o, "CDRegistryArtifact", "out/CDRegistry.sol/CDRegistry.json");
+        string memory out = vm.serializeString(o, "AdapterArtifact", "out/AppleAttestRegistryV1.sol/AppleAttestRegistryV1.json");
+        string memory path = vm.envString("DEPLOY_OUT");
         vm.writeJson(out, path);
         console2.log(path);
         console2.log(out);
