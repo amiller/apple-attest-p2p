@@ -245,15 +245,15 @@ footer { padding-top: 40px; display: flex; flex-direction: column; gap: 10px; fo
 
 <section class="plate" id="f">
   <header><span class="tag">F</span><div><span class="eyebrow">The verifier</span><h2>Admitting builds from any developer</h2></div></header>
-  <p>So a verifier doesn't need to trust any signer, and doesn't need a hand-curated list of CDHashes either. It keeps one approved build. To admit a new CDHash, anyone submits its CodeDirectory and page 0. The verifier checks that code slots 1…n match the approved build, that page 0 matches after zeroing the three length fields, and that the signature flags and entitlements add nothing beyond the approved build's (no <code>get-task-allow</code> = true, no dropped hardened runtime). After that, any attestation carrying this CDHash counts as the approved code.</p>
-  <pre class="policy">registerBuild(cd, page0, xmlEnts, derEnts):
+  <p>So a verifier doesn't need to trust any signer, and doesn't need a hand-curated list of CDHashes either. It keeps one approved build. To admit a new CDHash, anyone submits its CodeDirectory and page 0. The verifier checks that code slots 1…n match the approved build, that page 0 matches after zeroing the three length fields, and that the signature flags and entitlements add nothing beyond the approved build's (no <code>get-task-allow</code> = true, no dropped hardened runtime). After that, any attestation carrying this CDHash counts as the approved code. Info.plist is left free: another developer has to change its bundle identifier, so pinning its hash would admit only the original signer.</p>
+  <pre class="policy">registerBuild(cd, page0, derEnts):
   require keccak(cd.codeSlots[1..n])       == approvedRestSlots
   require sha256(page0)                     == cd.codeSlots[0]
   require keccak(mask(page0, 3 fields))     == approvedMaskedPage0
-  require cd.flags, cd.execSegFlags         == approved
-  require sha256(xmlEnts), sha256(derEnts)  == cd.specialSlots[-5], [-7]
-  require entitlement keys and values       == the approved build's, except team/app ID
-  isAdmitted[sha256(cd)] = true</pre>
+  require cd header (flags, execSeg, runtime) == approved
+  require sha256(derEnts)                   == cd.specialSlots[-7]
+  require entitlement keys and values       == the approved build's, except App ID / team
+  rpIdHash[sha256(cd)] = sha256(application-identifier)</pre>
   <p>We wrote this as a Solidity contract, <code>CDRegistry.sol</code>. Registering a 20 MiB build (1,280 pages) costs about 2.35M gas, once per signed build. Checking an attestation's CDHash after that is a mapping lookup. Every later assertion also carries the CDHash of whatever code is running at that moment, so swapping code under an existing key shows up in the next assertion.</p>
 </section>
 
