@@ -38,8 +38,8 @@ final class Node {
     func appAttest(enroll: Bool,_ context: Data) throws -> Data {
         let wait=DispatchSemaphore(value:0);var result:Data?;var failure:Error?
         let done:(Data?,Error?)->Void={d,e in result=d;failure=e;wait.signal()}
-        let hash=Data(SHA256.hash(data:context))
-        if enroll {service.attestKey(keyID,clientDataHash:hash,completionHandler:done)} else {service.generateAssertion(keyID,clientDataHash:hash,completionHandler:done)}
+        // Enrollment: the adapter takes clientData and hashes it. Assertion: the adapter takes the 32-byte context as clientDataHash.
+        if enroll {service.attestKey(keyID,clientDataHash:Data(SHA256.hash(data:context)),completionHandler:done)} else {service.generateAssertion(keyID,clientDataHash:context,completionHandler:done)}
         wait.wait()
         if let failure {throw failure}
         guard let result else {throw DemoError.invalid("missing App Attest response")};return result

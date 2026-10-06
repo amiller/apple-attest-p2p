@@ -1,0 +1,5 @@
+{"appAttestSupported":true,"event":"start","owner":"0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266","registry":"0x0165878A594ca255338adfa4d48449f69242Eb8F","rpc":"http:\/\/127.0.0.1:18555","t":1791306459.6741691,"variant":"honest"}
+{"event":"enrolled","keyId":"0xe9adb94ce68cef515e822f6577875c8bfcc9932aa166b3ca289f404774367f5e","member":"0x14269cac7e123e79dd60326d51fcea9dbff3732dc2a966800b1c4468dd02199c","sessionPublic":"0x048ee28fcb2543e48ea9241c6f35109cca004a9efc26dab44fd191b283bac43f806be63ff20e5f114e14331b6d5af9649489993bbbb663ca1b873da9b98f3bc7a9","t":1791306461.7802439,"tx":"0xae1b0b02ce38d39fe293ab5b0f95731fe6499013e66d6e11be0d7c5db73bb5c2"}
+{"action":0,"event":"executed","scope":"0x0000000000000000000000000000000000000000000000000000000000000000","t":1791306462.0052319,"tx":"0xc5f07e073f148e5d40b0336c22e4fe928176432aba008ddaf403dc8898a2fa3a"}
+{"event":"received","from":"a","t":1791306462.5452261,"type":"PARCEL"}
+{"error":"invalid(\"parcel recipient\")","event":"error","t":1791306462.5461011}

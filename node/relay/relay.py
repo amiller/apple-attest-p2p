@@ -32,7 +32,7 @@ def record(**entry):
 def send(fn, label):
     gas = fn.estimate_gas({'from': account.address})
     tx = fn.build_transaction({'from': account.address, 'nonce': w3.eth.get_transaction_count(account.address, 'pending'),
-                               'gas': int(gas * 1.2), 'gasPrice': w3.eth.gas_price * 2})
+                               'gas': gas + gas // 10, 'gasPrice': w3.eth.gas_price * 2})
     txid = w3.eth.send_raw_transaction(account.sign_transaction(tx).raw_transaction)
     receipt = w3.eth.wait_for_transaction_receipt(txid, timeout=120)
     assert receipt['status'] == 1, f'{label} reverted on chain'
