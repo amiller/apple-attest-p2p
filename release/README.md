@@ -79,8 +79,10 @@ Xcode's saved account session successfully exported the development-signed
 candidate under **Developer ID Application: Honey Badger Coop. Labs Inc.
 (DC9JH5DRMY)** even though the local keychain listed no Developer ID private key.
 The exported executable matches the reproducible unsigned payload and produced
-verified category-6 App Attest evidence. Apple accepted a notarization upload;
-processing/approval is tracked separately.
+verified category-6 App Attest evidence. Apple completed notarization. The exported app passes strict signature and
+stapled-ticket validation, preserves the reproducible payload, and produced
+fresh verified category-6 App Attest evidence. Gatekeeper is disabled on the
+build mini; a clean Mac download-and-open test remains required.
 
 ```sh
 python3 scripts/release/export_mac_xcode.py --app build/development/Node.app \
@@ -141,10 +143,11 @@ Guix build.
 - [x] Replay the real Developer ID enrollment through the Solidity adapter;
       accept under category 6 and reject under category 3. Register both the
       development and Developer ID copies under one code baseline successfully.
-- [x] Submit the archive for notarization using the saved Xcode account. The
-      submission succeeded; the most recent export check still says processing.
-- [ ] Notarize/staple; browser-download and
-      open the exact ZIP in a clean Mac account.
+- [x] Notarize and export using the saved Xcode account; strict signature and
+      stapled-ticket checks pass. Fresh App Attest from that exact export verifies
+      against its binary, with category 6 and the same Developer ID CDHash.
+- [ ] Browser-download and open the exact ZIP in a clean Mac account with
+      Gatekeeper enabled. The mini assessment reports `override=security disabled`.
 - [ ] Implement the first-run states in `user-flow.md` and a durable HTTPS relay.
 - [ ] Resolve persistent identity, assertion ordering, uncertain transaction
       recovery, certificate expiry and bounded retry behavior.
@@ -237,3 +240,7 @@ required before deployment. Existing V1 network deployments are unchanged.
 - [Bitcoin Core reproducible builds and separate signing](https://github.com/bitcoin/bitcoin/blob/master/contrib/guix/README.md)
 - [Recorded TestFlight experiment](../data/iphone-20261005-xs18/RESULTS.md)
 - [Recorded peer network run](../data/p2p-run-20261006/RESULTS.md)
+
+Notarized export evidence: `notarized-payload-20261006.json` and
+`notarized-appattest-20261006.json`. These describe the original CLI candidate
+whose unsigned hash begins `89697437`, not the later recovery or future GUI build.
