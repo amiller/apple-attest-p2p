@@ -14,5 +14,5 @@ export PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f
   --rpc-url http://127.0.0.1:18555 --broadcast --gas-estimate-multiplier 200 > "../$D/deploy.log" 2>&1)
 cp contracts/network/deploy-anvil.json "$D/"
 rm -f "$D/relay.jsonl"
-nohup python3 node/relay/relay.py --rpc http://127.0.0.1:18555 --deploy contracts/network/deploy-anvil.json --port 18556 --log "$D/relay.jsonl" > "$D/relay.out" 2>&1 & echo $! > "$D/relay.pid"
+nohup python3 node/relay/relay.py --rpc http://127.0.0.1:18555 --deploy contracts/network/deploy-anvil.json --port 18556 --settle 0 --log "$D/relay.jsonl" > "$D/relay.out" 2>&1 & echo $! > "$D/relay.pid"
 sleep 3; curl -sf localhost:18556/info

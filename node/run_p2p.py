@@ -10,6 +10,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--deploy', required=True); ap.add_argument('--rpc', required=True)
 ap.add_argument('--rpc-mini', required=True); ap.add_argument('--relay', required=True)
 ap.add_argument('--relay-log', required=True); ap.add_argument('--out', required=True); ap.add_argument('--builds', required=True)
+ap.add_argument('--settle', type=float, required=True)
 args = ap.parse_args()
 out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
 deploy = json.loads(Path(args.deploy).read_text())
@@ -56,6 +57,7 @@ def send(fn, label):
                                'gas': int(fn.estimate_gas({'from': account.address}) * 1.5), 'gasPrice': w3.eth.gas_price * 2})
     receipt = w3.eth.wait_for_transaction_receipt(w3.eth.send_raw_transaction(account.sign_transaction(tx).raw_transaction), timeout=120)
     assert receipt['status'] == 1, label
+    time.sleep(args.settle)
     note(tx=label, hash=receipt['transactionHash'].to_0x_hex(), gasUsed=receipt['gasUsed'])
 
 def build_args(variant):

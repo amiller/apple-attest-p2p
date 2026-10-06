@@ -16,6 +16,7 @@ from verifier.core import decode
 ap = argparse.ArgumentParser()
 ap.add_argument('--rpc', required=True); ap.add_argument('--deploy', required=True)
 ap.add_argument('--port', type=int, required=True); ap.add_argument('--log', required=True)
+ap.add_argument('--settle', type=float, required=True, help='seconds to wait after a receipt (public RPC backends lag the sequencer)')
 args = ap.parse_args()
 w3 = Web3(Web3.HTTPProvider(args.rpc, request_kwargs={'timeout': 60}))
 account = Account.from_key(os.environ['PRIVATE_KEY'])
@@ -36,6 +37,7 @@ def send(fn, label):
     txid = w3.eth.send_raw_transaction(account.sign_transaction(tx).raw_transaction)
     receipt = w3.eth.wait_for_transaction_receipt(txid, timeout=120)
     assert receipt['status'] == 1, f'{label} reverted on chain'
+    time.sleep(args.settle)
     record(kind='tx', label=label, tx=txid.to_0x_hex(), block=receipt['blockNumber'], gasUsed=receipt['gasUsed'])
     return txid.to_0x_hex()
 

@@ -108,3 +108,16 @@ Rough effort: steps 1–5 ≈ 2.5 days, 6–8 ≈ 2.5 days, 9 ≈ 0.5 day plus g
 - iOS 27 phone (00008140-…) is NOT paired with the mini (only the XS is), so its install stays an OTA tap. Batch it into a single install at the end.
 - CORRECTION: Andrew has NO iOS 27 iPhone (the 09-23 capture was on papi's phone). Live network = Mac nodes on the mini (macOS 27) only; iOS is covered by on-chain replay of the 09-23 captures (fork 188ebc6). Drop iOS client/install steps.
 - REVISED: keep the iOS client (thin SwiftUI shell over the shared node/ code). Test it in the iOS simulator against anvil + relay; App Attest is unsupported in the simulator, so the iOS attestation path is covered by (a) the same Swift attestation code running live on the macOS 27 mini and (b) on-chain replay of papi's 09-23 iPhone captures. Final real-device check = a friend's iOS 27 iPhone via ad hoc OTA install (needs their UDID in the profile), once, at the end.
+
+## Status 2026-10-06 (evidence: `data/p2p-run-20261006/RESULTS.md`)
+- [x] 1 AppleAuthData iOS profile, 2 AppleLeaf per-class ACL (done before import; tests green).
+- [x] 3 CDRegistry, REVISED: Info.plist slot and nSpecialSlots pins removed (they rejected real re-signs D/E/G/I and the Darkbloom pair). Pinned now: code slots, masked page 0, CD header, DER entitlements key set with identity values (application-identifier, team-identifier, keychain-access-groups) free. RP ID = sha256(application-identifier), so the App ID prefix == team ID assumption is gone. `registerBuild(cd, page0, entDer)`. This also covers step 10's entitlement pin (no explicit `get-task-allow` rule: an added key changes the key set and is rejected).
+- [x] 4 AppleAttestRegistryV1. Second-team test uses the real Darkbloom pair (Eigen Developer ID vs our team-substituted re-sign), not a synthetic CD.
+- [x] 5 Deploy script + Network.t.sol; deployed to anvil and Base Sepolia, all 7 contracts verified on Basescan. Earlier hang = registerBuild gas below the EIP-7623 floor; deploy with `--gas-estimate-multiplier 200`.
+- [x] 6 Shared node code (`node/shared`), Mac CLI (`node/mac`), relay transport instead of Bonjour.
+- [x] 7 Relay (`node/relay/relay.py`): gas sponsor + mailbox; reverts → HTTP 500 with reason.
+- [~] 8 iOS: SwiftUI shell (`node/ios`) built and run in the simulator up to App Attest (unsupported there). No Xcode project, ad hoc IPA or device install: no iOS 27 device.
+- [x] 9 Live run on the mini: A approved, B = `codesign --force` re-sign admitted after `registerBuild`; controls: B before registerBuild, modified build, stale check-in, replayed parcel. Anvil and Base Sepolia.
+- [ ] 9.3 `fixtures/iphone-node.json`: needs an iOS 27 device run.
+- [ ] Real-device iOS check (friend's iOS 27 iPhone, UDID in the ad hoc profile, OTA install).
+- Not done by design: Info.plist content pin (re-signer can change non-code bundle metadata; see CDRegistry.sol header).
