@@ -2,6 +2,9 @@
 
 Admission for a permissionless peer-to-peer network of iPhones and Macs, using App Attest on iOS/macOS 27. On those versions the App Attest attestation and assertions carry the running app's CDHash, so a contract can admit a device only if it runs a registered build. Copied out of `edge-tee/ios-app-attest` on 2026-10-06.
 
+Release work: [Mac reproducibility, fork/CI signing, and TestFlight checklist](release/README.md)
+and [first-run user flow](release/user-flow.md). The automatic public app is still in progress.
+
 Layout:
 - `contracts/` Foundry project: `CDRegistry` (admits any signer's re-sign of the approved build: code slots, masked page 0, CD header and entitlement key set pinned; RP ID = sha256(application-identifier)), `AppleAttestRegistryV1` / `MacAppAttestV1` adapters, `DemoV1` (application), P-384 and DER parsing, deploy script (`script/Network.s.sol`, outputs in `network/`). forge-std and OpenZeppelin 4.9.6 are vendored in `lib/`.
 - `verifier/`, `tests/`, `trust/`, `scripts/` Python App Attest verifier, its tests, the pinned Apple root, and build/inspection scripts (`cd_layout.py`, `cross_signer.py`, `macho_pages.py`).

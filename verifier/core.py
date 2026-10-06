@@ -131,7 +131,9 @@ class Policy:
         require(isinstance(self.app_id, str) and '.' in self.app_id, 'invalid_app_id')
         require(self.environment in ('development', 'production'), 'invalid_environment')
         require(self.development_aaguid in ('appattestdevelop', 'appattestsandbox'), 'invalid_aaguid_policy')
-        require(all(type(x) is int and x in (2, 3, 4, 5) for x in self.categories), 'invalid_ios_categories')
+        # Apple validation category 6 is Developer ID on macOS. Policies still
+        # choose an explicit category set; enabling the parser does not broaden it.
+        require(all(type(x) is int and x in (2, 3, 4, 5, 6) for x in self.categories), 'invalid_validation_categories')
         require(all(isinstance(x, str) for x in self.versions), 'invalid_versions')
         require(all(isinstance(x, bytes) and len(x) == 32 for x in self.cdhashes), 'invalid_cdhash_policy')
 

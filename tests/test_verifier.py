@@ -79,6 +79,17 @@ def test_attestation_positive(rig):
     assert result['receipt_status'] == 'retained_not_validated'
 
 
+def test_developer_id_requires_explicit_category_policy(rig):
+    raw = rig.attestation(b'challenge', extensions={'apple_validation_category_01': (6).to_bytes(4, 'little')})
+    result = verify_attestation(raw, rig.key_id, b'challenge', Policy(APP, categories=(6,)), rig.root_pem)
+    assert result['signals']['validation_category'] == 6
+    with pytest.raises(Reject, match='category_policy_failed'):
+        verify_attestation(raw, rig.key_id, b'challenge', Policy(APP, categories=(3,)), rig.root_pem)
+    for invalid in (0, 1, 7, 8, 9, 10, True):
+        with pytest.raises(Reject, match='invalid_validation_categories'):
+            Policy(APP, categories=(invalid,))
+
+
 @pytest.mark.parametrize('kwargs,reason', [
     ({'app_id': 'OTHERTEAM0.org.example.AppAttestLab'}, 'wrong_app_id'),
     ({'aaguid': b'appattest' + b'\0'*7}, 'wrong_environment_aaguid'),

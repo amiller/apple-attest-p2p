@@ -46,6 +46,22 @@ contract AppleAttestRegistryV1Test is Test {
         vm.expectRevert("key ACL");m.enroll(cert,auth,clientData);
     }
     function test_IPhoneUnregisteredBuildRejected() public {iphone(false);vm.expectRevert("build not admitted");adapter.enroll(cert,auth,clientData);}
+    function developerID(uint32 category) internal {
+        string memory f=vm.readFile("fixtures/developer-id-apple.json");
+        vm.warp(vm.parseJsonUint(f,".capturedAt"));
+        load("fixtures/developer-id-apple.json","fixtures/cd-args-developer-id.json",category,false,true);
+    }
+    function test_DeveloperIDEnrollmentThroughRegistry() public {
+        developerID(6);assertEq(adapter.enroll(cert,auth,clientData),kid);
+    }
+    function test_DeveloperIDNotAcceptedAsDevelopmentSigning() public {
+        developerID(3);vm.expectRevert("validation category");adapter.enroll(cert,auth,clientData);
+    }
+    function test_ReleaseDevelopmentAndDeveloperIDShareCodeBaseline() public {
+        developerID(6);
+        string memory b=vm.readFile("fixtures/cd-args-release-development.json");
+        assertEq(cds.registerBuild(vm.parseJsonBytes(b,".cd"),vm.parseJsonBytes(b,".page0"),vm.parseJsonBytes(b,".ent")),vm.parseJsonBytes32(b,".cdhash"));
+    }
     function withBuild(bytes memory a,bytes32 rp,bytes32 cdhash) internal pure returns(bytes memory){assembly{mstore(add(a,32),rp) mstore(add(a,94),cdhash)}return a;}
     function jb(string memory j,string memory k) internal pure returns(bytes memory){return vm.parseJsonBytes(j,k);}
     /// Real cross-team pair (Eigen Developer ID build of Darkbloom, our re-sign): each CDHash resolves only to its own team's RP ID.
