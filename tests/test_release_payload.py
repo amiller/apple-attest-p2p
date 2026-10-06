@@ -47,3 +47,21 @@ def test_reject_trailing_unsigned_data_change():
     b[len(a) - 1] ^= 1
     with pytest.raises(ValueError):
         verify(a, b)
+
+
+def test_accept_minimal_zero_signature_alignment_padding():
+    a, b = pair()
+    a = a[:-8]
+    struct.pack_into('<Q', a, 32 + 48, len(a) - 16384)
+    assert verify(a, b)['zero_alignment_padding'] == 8
+    b[len(a)] = 1
+    with pytest.raises(ValueError, match='padding'):
+        verify(a, b)
+
+
+def test_reject_extra_signature_padding():
+    a, b = pair()
+    a = a[:-16]
+    struct.pack_into('<Q', a, 32 + 48, len(a) - 16384)
+    with pytest.raises(ValueError, match='alignment'):
+        verify(a, b)

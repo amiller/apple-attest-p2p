@@ -9,3 +9,12 @@ contracts/network/deploy-test.json
 node/mac/build/
 node/mac/entitlements.plist
 *.pid
+
+# Hosted relay runtime caches and local state
+node/relay-hosted/node_modules/
+node/relay-hosted/relay-data/
+
+.release-secrets/
+
+contracts/network/cd-args-gui4-development.json
+contracts/network/deploy-gui-live.json

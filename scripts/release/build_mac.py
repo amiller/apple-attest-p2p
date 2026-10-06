@@ -11,7 +11,8 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCES = ['node/shared/Protocol.swift', 'node/shared/Chain.swift',
-           'node/shared/Node.swift', 'node/mac/main.swift']
+           'node/shared/Node.swift', 'node/mac/main.swift',
+           'node/mac/GUI.swift', 'node/mac/NetworkConfig.swift']
 
 
 def output(*args):
@@ -24,6 +25,7 @@ def digest(path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--gui', action='store_true', help='Build the persistent menu-bar participant')
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--bundle-id', default='dev.dsmack.provider')
     parser.add_argument('--version', default='0.1.0')
@@ -53,13 +55,15 @@ def main():
              '-target', 'arm64-apple-macos27.0', '-framework', 'DeviceCheck', '-D', 'HONEST',
              '-file-prefix-map', f'{ROOT}=/src', '-debug-prefix-map', f'{ROOT}=/src',
              '-Xlinker', '-no_adhoc_codesign']
+    if args.gui:
+        flags += ['-D', 'GUI', '-framework', 'AppKit']
     with tempfile.TemporaryDirectory(prefix='attest-module-cache-') as cache:
         subprocess.run(['xcrun', 'swiftc', '-sdk', sdk, '-module-cache-path', cache,
                         *flags, *SOURCES, '-o', str(executable)], cwd=ROOT, check=True,
                        env={**os.environ, 'LC_ALL': 'C', 'TZ': 'UTC'})
     tracked_inputs = SOURCES + ['node/mac/Info.plist', 'scripts/release/build_mac.py',
                                'release/toolchain.json']
-    record = {'schema': 1, 'kind': 'unsigned-build', 'toolchain': actual,
+    record = {'schema': 1, 'kind': 'unsigned-build', 'flavor': 'gui' if args.gui else 'cli', 'toolchain': actual,
               'source_commit': output('git', 'rev-parse', 'HEAD'),
               'dirty_build_inputs': bool(output('git', 'status', '--porcelain', '--untracked-files=normal', '--', *tracked_inputs)),
               'inputs': {p: digest(ROOT / p) for p in tracked_inputs},

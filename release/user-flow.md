@@ -1,6 +1,9 @@
 # Sample app first-run contract
 
-This is the acceptance specification for the next app build, not current behavior.
+This is the release acceptance specification. The Mac GUI now implements automatic
+connection, key receipt, persistent participation, menu-bar status and bounded
+retry. Isolated real-device tests cover restart and onward exchange; the clean
+Mac, visual layout, launch-at-login preference and iOS flow remain release gates.
 
 Opening the app begins enrollment automatically. No network chooser, configuration
 editor, wallet connection or gas purchase. The distributed bundle pins the network

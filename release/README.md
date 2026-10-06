@@ -244,3 +244,32 @@ required before deployment. Existing V1 network deployments are unchanged.
 Notarized export evidence: `notarized-payload-20261006.json` and
 `notarized-appattest-20261006.json`. These describe the original CLI candidate
 whose unsigned hash begins `89697437`, not the later recovery or future GUI build.
+
+## Native participant candidate (October 6 continuation)
+
+`python3 scripts/release/build_mac.py --gui --out build/gui` builds the native
+Mac window/menu-bar participant. Normal launch starts the configured release
+network automatically. Close keeps serving; Quit stops. Agent status is written
+to `~/Library/Application Support/AttestNode/status.json` from the same protocol
+events as the UI. The default build pins RPC, chain, contract, category, relay and
+protocol in measured executable code; developer config cannot override them.
+
+The operator seed uses the same executable through LaunchServices, with a public
+config and the `seed` role. It retains the group key in memory while recovering
+from connection failures and renewing an expired identity. After complete loss
+of all RAM key holders, an explicit administrator epoch change is still required.
+No test STOP message is honored by persistent participant/seed modes.
+
+Real-device isolated-chain evidence: `../data/gui-release-20261006/RESULTS.md`.
+The GUI received the key, served an onward peer, resumed the same identity after
+restart, and recovered after the durable relay restarted. The relay journals
+signed transactions before submission and stores bounded, expiring mailboxes.
+Its source and locked dependencies are in `node/relay-hosted`.
+
+The separate Base Sepolia release deployment is recorded in
+`contracts/network/deploy-release-base-sepolia.json`; its dedicated sponsor is
+`0xe45C80da8A992447E9Da6d2d82Fe4b6Fa2d48C61`. The HTTPS relay is
+`https://pod.dstack.soc1024.com/apple-attest-p2p-relay`. The sponsor credential was
+explicitly approved for this pod and is excluded from source and build artifacts.
+The exact protected Developer ID GUI is now registered and admission enabled;
+see `gui-network-activation-20261006.json`. Its live enrollment test is underway.

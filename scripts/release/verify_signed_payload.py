@@ -41,8 +41,10 @@ def verify(unsigned, signed):
     if cmd != 0x1d or length != 16 or unsigned[offset:offset+16] != bytes(16):
         raise ValueError('Unexpected signature command or overwritten input bytes')
     start, size = struct.unpack_from('<II', signed, offset + 8)
-    if start != len(unsigned) or size <= 0 or start + size != len(signed):
-        raise ValueError('Signature must be appended at unsigned EOF')
+    if start != (len(unsigned) + 15) // 16 * 16 or size <= 0 or start + size != len(signed):
+        raise ValueError('Signature must follow unsigned EOF at 16-byte alignment')
+    if signed[len(unsigned):start] != bytes(start - len(unsigned)):
+        raise ValueError('Signature alignment padding must be zero')
     linkedit = [off for off, cmd, length in original
                 if cmd == 0x19 and length == 72 and unsigned[off+8:off+24] == b'__LINKEDIT' + bytes(6)]
     if len(linkedit) != 1:
@@ -56,7 +58,7 @@ def verify(unsigned, signed):
         expected_size = len(data) - fileoff
         if actual_offset != fileoff or filesize != expected_size or vmsize != (expected_size + 16383) // 16384 * 16384:
             raise ValueError('Unexpected __LINKEDIT size/alignment')
-    normalized = bytearray(signed[:start])
+    normalized = bytearray(signed[:len(unsigned)])
     normalized[16:24] = unsigned[16:24]  # ncmds and sizeofcmds
     normalized[offset:offset+16] = bytes(16)
     normalized[off+32:off+40] = unsigned[off+32:off+40]  # vmsize
@@ -66,8 +68,8 @@ def verify(unsigned, signed):
     return {'schema': 1, 'unsigned_payload_matches_signed': True,
             'unsigned_sha256': hashlib.sha256(unsigned).hexdigest(),
             'signed_sha256': hashlib.sha256(signed).hexdigest(),
-            'signature_offset': start, 'signature_size': size,
-            'comparison': 'all original bytes, except appended signature load command and validated LINKEDIT sizes'}
+            'signature_offset': start, 'signature_size': size, 'zero_alignment_padding': start - len(unsigned),
+            'comparison': 'all original bytes, except appended signature load command and validated LINKEDIT sizes; only zero padding to 16-byte signature alignment'}
 
 
 def main():

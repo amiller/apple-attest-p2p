@@ -1,6 +1,7 @@
 import Foundation
 import DeviceCheck
 import CryptoKit
+import Darwin
 
 let zero32=Data(repeating:0,count:32)
 #if MODIFIED
@@ -20,6 +21,15 @@ struct Config {
         protocolVersion=d["protocolVersion"] as? Int ?? 1
         try need(protocolVersion==1 || protocolVersion==2,"unsupported protocol version")
         persistentIdentity=d["persistentIdentity"] as? Bool ?? false
+        #if GUI
+        // A host-controlled developer config must never redirect the trusted RPC
+        // or admission policy of a measured release build.
+        if let fixed=ReleaseNetwork.settings {
+            try need(rpc==fixed["rpc"] as? String && registry.lowercased()==(fixed["registry"] as? String)?.lowercased()
+                && chainId==fixed["chainId"] as? Int && category.lowercased()==(fixed["category"] as? String)?.lowercased()
+                && relay==fixed["relay"] as? String && protocolVersion==fixed["protocolVersion"] as? Int,"release network override rejected")
+        }
+        #endif
     }
 }
 
@@ -31,6 +41,16 @@ final class Node {
     let session=P256.KeyAgreement.PrivateKey()
     var sessionPublic: Data {session.publicKey.x963Representation}
     var keyID=""; var owner=""; var me=Data(); var held=[Data:P256.Signing.PrivateKey](); var heldEpoch=[Data:UInt64](); var nonces=[String:Data]()
+    private var identityLock: Int32 = -1
+    deinit {if identityLock >= 0 {close(identityLock)}}
+    func lockIdentity() throws {
+        guard cfg.persistentIdentity && identityLock < 0 else {return}
+        let path=try statePath().appendingPathExtension("lock").path
+        let fd=Darwin.open(path,O_CREAT | O_RDWR,0o600)
+        try need(fd >= 0,"cannot open identity lock")
+        if flock(fd,LOCK_EX | LOCK_NB) != 0 {close(fd);throw DemoError.invalid("identity already running")}
+        identityLock=fd
+    }
     struct EnrollmentState: Codable {var keyID: String;var attestation: String?;var clientData: String?}
     func statePath() throws -> URL {
         let root=try FileManager.default.url(for:.applicationSupportDirectory,in:.userDomainMask,appropriateFor:nil,create:true)
@@ -62,10 +82,13 @@ final class Node {
         guard let result else {throw DemoError.invalid("missing App Attest response")};return result
     }
     func start() throws {
+        try lockIdentity()
+        log("connecting",[:])
         try need(try quantity(chain.rpc("eth_chainId",[]))==cfg.chainId,"wrong chain")
         guard let o=try relay("info")["owner"] as? String else {throw DemoError.invalid("relay owner")};owner=o
         log("start",["variant":variant,"rpc":cfg.rpc.absoluteString,"registry":cfg.registry,"owner":owner,"appAttestSupported":service.isSupported])
         try need(service.isSupported,"App Attest unsupported")
+        log("attesting",[:])
         var state: EnrollmentState?
         if cfg.persistentIdentity {
             let path=try statePath()
@@ -110,7 +133,7 @@ final class Node {
     func execute(_ action: UInt64,scope: Data=zero32,group: P256.Signing.PrivateKey?=nil,envelope: Data=zero32) throws -> String {
         let nonce=try smallWord(chain.call("nonces(address)",addressWord(owner)))
         let point=group?.publicKey.x963Representation ?? Data(repeating:0,count:65)
-        let request=Request(action:action,category:cfg.category,owner:owner,session:keccak(sessionPublic),nonce:nonce,deadline:UInt64(Date().timeIntervalSince1970)+55,
+        let request=Request(action:action,category:cfg.category,owner:owner,session:keccak(sessionPublic),nonce:nonce,deadline:try chain.requestDeadline(),
                             scope:action<2 ? zero32:scope,x:point.subdata(in:1..<33),y:point.subdata(in:33..<65),envelope:envelope)
         let epoch=action<2 ? 0:try chain.keyEpoch(scope,protocolVersion:cfg.protocolVersion)
         let context=try request.context(registry:cfg.registry,chainId:cfg.chainId,protocolVersion:cfg.protocolVersion,keyEpoch:epoch)
@@ -154,8 +177,11 @@ final class Node {
         let raw=try AES.GCM.open(AES.GCM.SealedBox(combined:parcel.suffix(60)),using:transport(parcel.prefix(65),associated),authenticating:associated)
         let key=try P256.Signing.PrivateKey(rawRepresentation:raw)
         try need(try chain.groupPublic(scope)==key.publicKey.x963Representation,"imported key commitment")
-        held[scope]=key;heldEpoch[scope]=try chain.keyEpoch(scope,protocolVersion:cfg.protocolVersion)
-        _=try execute(3,scope:scope,group:key,envelope:keccak(parcel))
+        let epoch=try chain.keyEpoch(scope,protocolVersion:cfg.protocolVersion)
+        let receipt=try execute(3,scope:scope,group:key,envelope:keccak(parcel))
+        held[scope]=key;heldEpoch[scope]=epoch
+        log("key verified",["scope":hex(scope),"keyEpoch":heldEpoch[scope] ?? 0,
+            "groupPublic":hex(key.publicKey.x963Representation),"senderReceipt":senderTx,"receipt":receipt])
         return scope
     }
     func send(_ to: String,_ message: [String:Any]) throws {
@@ -174,8 +200,44 @@ final class Node {
         try start()
         if !(try chain.committed(zero32)) {try bootstrap(zero32)}
         try need(held[zero32] != nil,"overall key committed by another process; this node cannot export it")
+        try serve(allowTestStop:true)
+    }
+    /// Operator seed with bounded retries; never silently rotate a committed key.
+    func maintainSeed() {
+        var delay:Double=2
         while true {
-            let m=try receive(timeout:3600);guard let type=m["type"] as? String,let from=m["from"] as? String else {throw DemoError.invalid("message fields")}
+            do {
+                try start()
+                let epoch=try chain.keyEpoch(zero32,protocolVersion:cfg.protocolVersion)
+                if heldEpoch[zero32] != epoch {held.removeValue(forKey:zero32);heldEpoch.removeValue(forKey:zero32)}
+                if !(try chain.committed(zero32)) {try bootstrap(zero32)}
+                if held[zero32] == nil {
+                    try need(!cfg.peer.isEmpty,"seed recovery requires a live peer or explicit new key epoch")
+                    try connect(startIdentity:false)
+                }
+                log("seed ready",["keyEpoch":epoch]);delay=2;try serve()
+            } catch {
+                log("seed retrying",["error":String(describing:error),"retryAfterSeconds":delay])
+                Thread.sleep(forTimeInterval:delay);delay=min(delay*2,60)
+            }
+        }
+    }
+    /// Production participants ignore unauthenticated test STOP messages.
+    func serve(allowTestStop: Bool=false) throws {
+        var checkedAt=Date.distantPast
+        while true {
+            if Date().timeIntervalSince(checkedAt)>30 {
+                try need(heldEpoch[zero32]==(try chain.keyEpoch(zero32,protocolVersion:cfg.protocolVersion)),"key epoch changed")
+                guard let kid=Data(base64Encoded:keyID) else {throw DemoError.invalid("key ID")}
+                let identity=try chain.enrollment(kid,category:cfg.category)
+                try need(identity.enrolled && identity.expires>UInt64(Date().timeIntervalSince1970),"identity renewal required")
+                checkedAt=Date();log("network reachable",[:])
+            }
+            var message: [String:Any]
+            do {message=try receive(timeout:15)}
+            catch DemoError.invalid(let reason) where reason=="receive timeout" {continue}
+            guard let type=message["type"] as? String,let from=message["from"] as? String else {log("ignored malformed message",[:]);continue}
+            let m=message
             do {
                 switch type {
                 case "HELLO":
@@ -188,28 +250,51 @@ final class Node {
                     let group=try P256.Signing.PublicKey(x963Representation:chain.groupPublic(zero32))
                     try need(group.isValidSignature(try P256.Signing.ECDSASignature(rawRepresentation:unhex(sig)),for:nonce),"PROOF signature")
                     log("peer holds group key",["peer":from])
-                case "STOP": log("stop",[:]);return
+                case "STOP":
+                    try need(allowTestStop,"test control disabled");log("stop",[:]);return
+                case "ERROR", "PARCEL": log("ignored stale message",["type":type])
                 default: throw DemoError.invalid("message type")
                 }
             } catch {
                 log("refused",["peer":from,"type":type,"error":"\(error)"])
-                try send(from,["type":"ERROR","reason":"\(error)"])
+                if type=="HELLO" {try send(from,["type":"ERROR","reason":"\(error)"])}
             }
         }
     }
     /// Joins, asks `peer` for the overall group key, imports it, proves possession.
-    func connect() throws {
-        try start()
+    func connect(startIdentity: Bool=true) throws {
+        if startIdentity {try start()}
+        log("getting key",[:])
         let joinTx=try join()
         Thread.sleep(forTimeInterval:cfg.helloDelay)
         let nonce=Data(SHA256.hash(data:Data(UUID().uuidString.utf8)))
         if !cfg.peer.isEmpty {try send(cfg.peer,["type":"HELLO","member":hex(me),"joinTx":joinTx,"sessionPublic":hex(sessionPublic),"nonce":hex(nonce)])}
-        let m=try receive(timeout:300)
-        guard let type=m["type"] as? String,type=="PARCEL",let parcel=m["parcel"] as? String,let tx=m["receiptTx"] as? String
-        else {throw DemoError.invalid("peer replied \(m["type"] ?? ""): \(m["reason"] ?? "")")}
+        let until=Date().addingTimeInterval(60)
+        var reply: [String:Any]?
+        while Date()<until {
+            let message=try receive(timeout:max(1,until.timeIntervalSinceNow))
+            // Other peers may ask us for keys while we are still acquiring ours.
+            // Those requests must not consume the expected faucet reply.
+            guard message["from"] as? String == cfg.peer else {log("ignored while acquiring",[:]);continue}
+            if message["type"] as? String == "ERROR" {throw DemoError.invalid("faucet: \(message["reason"] ?? "unavailable")")}
+            guard message["type"] as? String == "PARCEL" else {continue}
+            reply=message;break
+        }
+        guard let m=reply,let parcel=m["parcel"] as? String,let tx=m["receiptTx"] as? String else {throw DemoError.invalid("faucet receipt timeout")}
         let scope=try importParcel(unhex(parcel),senderTx:tx)
         log("imported group key",["scope":hex(scope),"groupPublic":hex(try chain.groupPublic(scope))])
         guard let key=held[scope] else {throw DemoError.invalid("no key")}
         try send(cfg.peer,["type":"PROOF","signature":hex(try key.signature(for:nonce).rawRepresentation)])
     }
+    /// Keep the admitted participant alive, serving authenticated peers after receipt.
+    /// A missing seed never silently replaces the committed shared key.
+    func participate() throws {
+        try start()
+        let epoch=try chain.keyEpoch(zero32,protocolVersion:cfg.protocolVersion)
+        if heldEpoch[zero32] != epoch {held.removeValue(forKey:zero32);heldEpoch.removeValue(forKey:zero32)}
+        if held[zero32] == nil {try connect(startIdentity:false)} else {_=try join()}
+        log("participating",["member":hex(me),"keyEpoch":epoch])
+        try serve()
+    }
+
 }

@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--gui', action='store_true')
     parser.add_argument('--out', type=Path, required=True)
     args = parser.parse_args()
     dest = args.out.resolve()
@@ -30,7 +31,7 @@ def main():
                                 ignore=shutil.ignore_patterns('build', '__pycache__', 'entitlements.plist'))
             build = dest / name
             subprocess.run([sys.executable, str(tree / 'scripts/release/build_mac.py'),
-                            '--out', str(build)], check=True)
+                            '--out', str(build), *(['--gui'] if args.gui else [])], check=True)
             manifests.append(json.loads((build / 'build-manifest.json').read_text()))
     same = manifests[0]['files'] == manifests[1]['files']
     report = {'schema': 1, 'unsigned_bundle_identical': same,

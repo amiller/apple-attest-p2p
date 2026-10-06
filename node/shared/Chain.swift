@@ -15,6 +15,13 @@ struct Chain {
         guard let s=try rpc("eth_call",[["to":target ?? registry,"data":hex(keccak(Data(signature.utf8)).prefix(4)+words)],"latest"]) as? String else {throw DemoError.invalid("call response")}
         return try unhex(s)
     }
+    func requestDeadline() throws -> UInt64 {
+        guard let block=try rpc("eth_getBlockByNumber",["latest",false]) as? [String:Any] else {throw DemoError.invalid("missing latest block")}
+        let timestamp=try quantity(block["timestamp"])
+        let now=UInt64(Date().timeIntervalSince1970)
+        try need(timestamp<=now+5 && now<timestamp+45,"chain clock is stale")
+        return timestamp+55
+    }
     func keyEpoch(_ scope: Data,protocolVersion: Int) throws -> UInt64 {
         protocolVersion==2 ? try smallWord(call("keyEpochs(bytes32)",scope)):0
     }
