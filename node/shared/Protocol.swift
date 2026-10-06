@@ -50,9 +50,13 @@ struct Request {
         let parts = [word(action),category,ownerWord,ownerWord,session,word(nonce),word(deadline),scope,x,y,envelope]
         return parts.reduce(Data(),+)
     }
-    func context(registry: String,chainId: UInt64) throws -> Data {
-        let name=Data("TEE_INTEROP_DEMO_V1".utf8)
-        let parts = [word(14*32),word(chainId),try addressWord(registry),try words(),word(UInt64(name.count)),name,Data(repeating:0,count:(32-name.count%32)%32)]
+    func context(registry: String,chainId: UInt64,protocolVersion: Int=1,keyEpoch: UInt64=0) throws -> Data {
+        try need(protocolVersion==1 || protocolVersion==2,"unsupported protocol version")
+        try need(protocolVersion==2 || keyEpoch==0,"v1 has no key epochs")
+        let name=Data((protocolVersion==2 ? "TEE_INTEROP_DEMO_V2":"TEE_INTEROP_DEMO_V1").utf8)
+        var parts = [word(UInt64(protocolVersion==2 ? 15*32:14*32)),word(chainId),try addressWord(registry)]
+        if protocolVersion==2 {parts.append(word(keyEpoch))}
+        parts += [try words(),word(UInt64(name.count)),name,Data(repeating:0,count:(32-name.count%32)%32)]
         return keccak(parts.reduce(Data(),+))
     }
     var json: [String:Any] { ["action":action,"category":hex(category),"owner":owner,"memberSigner":owner,"sessionKeyHash":hex(session),"nonce":nonce,"validUntil":deadline,"scope":hex(scope),"keyX":hex(x),"keyY":hex(y),"envelopeDigest":hex(envelope)] }

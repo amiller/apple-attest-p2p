@@ -11,9 +11,18 @@ struct Chain {
         guard let value=r["result"] else {throw DemoError.invalid("RPC result")}
         return value
     }
-    func call(_ signature: String,_ words: Data=Data()) throws -> Data {
-        guard let s=try rpc("eth_call",[["to":registry,"data":hex(keccak(Data(signature.utf8)).prefix(4)+words)],"latest"]) as? String else {throw DemoError.invalid("call response")}
+    func call(_ signature: String,_ words: Data=Data(),to target: String?=nil) throws -> Data {
+        guard let s=try rpc("eth_call",[["to":target ?? registry,"data":hex(keccak(Data(signature.utf8)).prefix(4)+words)],"latest"]) as? String else {throw DemoError.invalid("call response")}
         return try unhex(s)
+    }
+    func keyEpoch(_ scope: Data,protocolVersion: Int) throws -> UInt64 {
+        protocolVersion==2 ? try smallWord(call("keyEpochs(bytes32)",scope)):0
+    }
+    func enrollment(_ kid: Data,category: Data) throws -> (enrolled: Bool,expires: UInt64) {
+        let c=try call("categories(bytes32)",category);try need(c.count==192,"category encoding")
+        let adapter=hex(c.subdata(in:12..<32));try need(adapter != "0x"+String(repeating:"0",count:40),"missing adapter")
+        let key=try call("keys(bytes32)",kid,to:adapter);try need(key.count==160,"enrollment encoding")
+        return (try smallWord(key.suffix(32))==1,try smallWord(key.subdata(in:64..<96)))
     }
     func groupPublic(_ scope: Data) throws -> Data {
         let value=try call("sharedKeys(bytes32)",scope);try need(value.count==128,"shared key encoding")

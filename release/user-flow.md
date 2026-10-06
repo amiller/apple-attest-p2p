@@ -11,7 +11,7 @@ identity and compatible protocol/policy; operational HTTPS endpoints are publish
 | Preflight | Checking your Mac… | Supported OS/device/API and valid configuration |
 | Connecting | Connecting to the testnet… | Expected chain/network and reachable relay |
 | Attesting | Verifying this app… | Authentic evidence accepted under current policy |
-| Admitted | Getting your testnet credential… | Confirmed, idempotent faucet receipt for this participant |
+| Admitted | Getting the shared testnet key… | Authenticated key parcel, matching on-chain public-key commitment and verified exchange receipt |
 | Discovering | Finding a peer… | Authenticated peer/session binding |
 | Active | You're connected | Verified exchange with a peer; timestamp visible |
 | Waiting | Admitted; waiting for a peer | Admission holds, no current peer exchange |
@@ -19,7 +19,7 @@ identity and compatible protocol/policy; operational HTTPS endpoints are publish
 | Rejected | This build isn't admitted | Stop authorization; show release/update details |
 | Unsupported | This device doesn't support this testnet | Explain macOS/iOS 27 evidence requirement |
 
-The main window shows network name, credential/claim receipt, peer count, last
+The main window shows network name, shared-key receipt, peer count, last
 verified exchange and current state. Technical details expose code identity,
 signer, policy, transaction IDs and explicit RPC/admin trust. Logs and agent JSON
 status report the same state, not guessed UI progress.
@@ -28,11 +28,18 @@ Closing the Mac window leaves a visible menu-bar participant; Quit stops it.
 Launch at login is a separate explicit preference. Do not promise pre-login
 daemon support. On phones, explain that participation requires the foreground.
 
-The faucet has no monetary value. Its meaning must be settled before copy is
-finalized: the app's private identity key is generated locally, never sent from a
-faucet. The existing gas sponsor currently owns the on-chain claim recipient.
-Implement a participant-bound credential or recipient path before saying the user
-received tokens. Restart must not create a new key/claim merely to recover.
+The faucet distributes the shared testnet signing key, with a verifiable receipt.
+The participant's App Attest identity is generated locally and remains distinct
+from that shared key. Show the network, key epoch, public-key fingerprint and
+receipt transaction; never display or log the shared private key. Participation
+has no monetary value and does not require a token claim.
+
+Persist the App Attest identity and interrupted enrollment evidence; keep the
+shared signing key in memory and reacquire it from a live peer after restart.
+If all key holders stop, show that the faucet is unavailable. Recovery requires
+an explicit administrator epoch change and a new bootstrap, recorded on chain.
+An epoch change does not erase old key copies. Expired attestation identities
+need explicit renewal under the verifier policy; do not silently claim continuity.
 
 Developer/agent acceptance: one documented build command, one launch command
 through LaunchServices (App Attest is unsupported for the directly exec'd SSH

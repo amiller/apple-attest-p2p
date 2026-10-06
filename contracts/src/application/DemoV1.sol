@@ -82,7 +82,7 @@ contract DemoV1 is ReentrancyGuard {
         return !paused && m.owner != address(0) && !m.revoked && c.enabled
             && c.adapter.codehash == c.adapterCodeHash && block.timestamp < uint256(m.lastChecked) + 60;
     }
-    function contextHash(Request calldata r) public view returns (bytes32) {
+    function contextHash(Request calldata r) public view virtual returns (bytes32) {
         return keccak256(abi.encode("TEE_INTEROP_DEMO_V1", block.chainid, address(this), r));
     }
     function execute(Request calldata r, bytes calldata proof, bytes calldata memberSignature, bytes calldata groupSignature)

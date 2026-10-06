@@ -11,12 +11,15 @@ let variant="honest"
 
 struct Config {
     let rpc: URL; let registry: String; let chainId: UInt64; let category: Data; let relay: URL; let name: String
-    let peer: String; let helloDelay: Double
+    let peer: String; let helloDelay: Double; let protocolVersion: Int; let persistentIdentity: Bool
     init(_ d: [String:Any]) throws {
         guard let rpc=d["rpc"] as? String,let registry=d["registry"] as? String,let chainId=d["chainId"] as? Int,let category=d["category"] as? String,
               let relay=d["relay"] as? String,let name=d["name"] as? String,let r=URL(string:rpc),let l=URL(string:relay) else {throw DemoError.invalid("config fields")}
         self.rpc=r;self.registry=registry;self.chainId=UInt64(chainId);self.category=try bytes32(category);self.relay=l;self.name=name
         peer=d["peer"] as? String ?? "";helloDelay=d["helloDelay"] as? Double ?? 0
+        protocolVersion=d["protocolVersion"] as? Int ?? 1
+        try need(protocolVersion==1 || protocolVersion==2,"unsupported protocol version")
+        persistentIdentity=d["persistentIdentity"] as? Bool ?? false
     }
 }
 
@@ -27,7 +30,21 @@ final class Node {
     let service=DCAppAttestService.shared
     let session=P256.KeyAgreement.PrivateKey()
     var sessionPublic: Data {session.publicKey.x963Representation}
-    var keyID=""; var owner=""; var me=Data(); var held=[Data:P256.Signing.PrivateKey](); var nonces=[String:Data]()
+    var keyID=""; var owner=""; var me=Data(); var held=[Data:P256.Signing.PrivateKey](); var heldEpoch=[Data:UInt64](); var nonces=[String:Data]()
+    struct EnrollmentState: Codable {var keyID: String;var attestation: String?;var clientData: String?}
+    func statePath() throws -> URL {
+        let root=try FileManager.default.url(for:.applicationSupportDirectory,in:.userDomainMask,appropriateFor:nil,create:true)
+            .appendingPathComponent("AttestNode",isDirectory:true)
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        let domain="\(cfg.chainId):\(cfg.registry.lowercased()):\(hex(cfg.category)):\(cfg.name)"
+        return root.appendingPathComponent(hex(keccak(Data(domain.utf8)))+".json")
+    }
+    func saveState(_ state: EnrollmentState) throws {
+        if cfg.persistentIdentity {
+            let path=try statePath();try JSONEncoder().encode(state).write(to:path,options:.atomic)
+            try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:path.path)
+        }
+    }
     init(_ cfg: Config,log: @escaping (String,[String:Any]) -> Void) {
         self.cfg=cfg;chain=Chain(rpcURL:cfg.rpc,registry:cfg.registry,chainId:cfg.chainId);self.log=log
     }
@@ -40,7 +57,7 @@ final class Node {
         let done:(Data?,Error?)->Void={d,e in result=d;failure=e;wait.signal()}
         // Enrollment: the adapter takes clientData and hashes it. Assertion: the adapter takes the 32-byte context as clientDataHash.
         if enroll {service.attestKey(keyID,clientDataHash:Data(SHA256.hash(data:context)),completionHandler:done)} else {service.generateAssertion(keyID,clientDataHash:context,completionHandler:done)}
-        wait.wait()
+        try need(wait.wait(timeout:.now()+90) == .success,"App Attest timeout")
         if let failure {throw failure}
         guard let result else {throw DemoError.invalid("missing App Attest response")};return result
     }
@@ -49,13 +66,43 @@ final class Node {
         guard let o=try relay("info")["owner"] as? String else {throw DemoError.invalid("relay owner")};owner=o
         log("start",["variant":variant,"rpc":cfg.rpc.absoluteString,"registry":cfg.registry,"owner":owner,"appAttestSupported":service.isSupported])
         try need(service.isSupported,"App Attest unsupported")
+        var state: EnrollmentState?
+        if cfg.persistentIdentity {
+            let path=try statePath()
+            if FileManager.default.fileExists(atPath:path.path) {
+                state=try JSONDecoder().decode(EnrollmentState.self,from:Data(contentsOf:path))
+                guard let kid=Data(base64Encoded:state!.keyID),kid.count==32 else {throw DemoError.invalid("stored key ID")}
+                let existing=try chain.enrollment(kid,category:cfg.category)
+                if existing.enrolled && existing.expires>UInt64(Date().timeIntervalSince1970) {
+                    keyID=state!.keyID;me=keccak(cfg.category+kid)
+                    log("identity resumed",["member":hex(me),"expires":existing.expires]);return
+                }
+                if existing.enrolled {
+                    log("identity expired",["previousMember":hex(keccak(cfg.category+kid)),"message":"A new attestation identity is required by the current verifier policy"])
+                    state=nil
+                }
+            }
+        }
+        if state==nil {
         let wait=DispatchSemaphore(value:0);var failure:Error?
-        service.generateKey{k,e in self.keyID=k ?? "";failure=e;wait.signal()};wait.wait()
+        service.generateKey{k,e in self.keyID=k ?? "";failure=e;wait.signal()}
+        try need(wait.wait(timeout:.now()+90) == .success,"key generation timeout")
         if let failure {throw failure}
+            state=EnrollmentState(keyID:keyID);try saveState(state!)
+        } else {keyID=state!.keyID}
         guard let kid=Data(base64Encoded:keyID),kid.count==32 else {throw DemoError.invalid("key id")}
         me=keccak(cfg.category+kid)
-        let context=try keccak(Data("TEE_INTEROP_ENROLL_V1".utf8)+addressWord(cfg.registry)+addressWord(owner)+sessionPublic)
-        let attestation=try appAttest(enroll:true,context)
+        var context: Data;var attestation: Data
+        if let cached=state!.attestation,let originalContext=state!.clientData {
+            guard let value=Data(base64Encoded:cached) else {throw DemoError.invalid("stored enrollment")}
+            attestation=value;context=try unhex(originalContext)
+            log("resuming enrollment",[:])
+        } else {
+            context=try keccak(Data("TEE_INTEROP_ENROLL_V1".utf8)+addressWord(cfg.registry)+addressWord(owner)+sessionPublic)
+            attestation=try appAttest(enroll:true,context)
+            state!.attestation=attestation.base64EncodedString();state!.clientData=hex(context)
+            try saveState(state!)
+        }
         let r=try relay("enroll",["category":hex(cfg.category),"attestation":attestation.base64EncodedString(),"clientData":hex(context)])
         log("enrolled",["keyId":hex(kid),"member":hex(me),"tx":r["tx"] ?? "","sessionPublic":hex(sessionPublic)])
     }
@@ -65,16 +112,18 @@ final class Node {
         let point=group?.publicKey.x963Representation ?? Data(repeating:0,count:65)
         let request=Request(action:action,category:cfg.category,owner:owner,session:keccak(sessionPublic),nonce:nonce,deadline:UInt64(Date().timeIntervalSince1970)+55,
                             scope:action<2 ? zero32:scope,x:point.subdata(in:1..<33),y:point.subdata(in:33..<65),envelope:envelope)
-        let context=try request.context(registry:cfg.registry,chainId:cfg.chainId)
+        let epoch=action<2 ? 0:try chain.keyEpoch(scope,protocolVersion:cfg.protocolVersion)
+        let context=try request.context(registry:cfg.registry,chainId:cfg.chainId,protocolVersion:cfg.protocolVersion,keyEpoch:epoch)
         let assertion=try appAttest(enroll:false,context)
         let signature=try group.map{hex(try $0.signature(for:RawDigest(data:context)).rawRepresentation)} ?? "0x"
         guard let tx=try relay("execute",["request":request.json,"context":hex(context),"assertion":assertion.base64EncodedString(),
                                           "keyId":keyID,"groupSignature":signature])["tx"] as? String else {throw DemoError.invalid("relay tx")}
-        log("executed",["action":action,"scope":hex(scope),"tx":tx]);return tx
+        log("executed",["action":action,"scope":hex(scope),"keyEpoch":epoch,"tx":tx]);return tx
     }
     func join() throws -> String {try execute(0)}
     func bootstrap(_ scope: Data) throws {
-        let key=P256.Signing.PrivateKey();_=try execute(2,scope:scope,group:key);held[scope]=key
+        let epoch=try chain.keyEpoch(scope,protocolVersion:cfg.protocolVersion)
+        let key=P256.Signing.PrivateKey();_=try execute(2,scope:scope,group:key);held[scope]=key;heldEpoch[scope]=epoch
     }
     func aad(_ scope: Data,_ recipient: Data,_ recipientPublic: Data) throws -> Data {
         try Data("TEE_INTEROP_PARCEL_V1".utf8)+word(cfg.chainId)+addressWord(cfg.registry)+scope+recipient+recipientPublic
@@ -89,6 +138,7 @@ final class Node {
         let peer=try chain.checkedPeer(recipientTx);try need(peer.session==keccak(pub),"recipient key binding")
         try chain.eligible(peer.member,peer.category,scope)
         guard let key=held[scope] else {throw DemoError.invalid("no local key")}
+        try need(heldEpoch[scope]==(try chain.keyEpoch(scope,protocolVersion:cfg.protocolVersion)),"key epoch changed")
         try need(try chain.groupPublic(scope)==key.publicKey.x963Representation,"local key not committed")
         let associated=try aad(scope,peer.member,pub)
         guard let sealed=try AES.GCM.seal(key.rawRepresentation,using:transport(pub,associated),authenticating:associated).combined else {throw DemoError.invalid("AEAD result")}
@@ -104,7 +154,8 @@ final class Node {
         let raw=try AES.GCM.open(AES.GCM.SealedBox(combined:parcel.suffix(60)),using:transport(parcel.prefix(65),associated),authenticating:associated)
         let key=try P256.Signing.PrivateKey(rawRepresentation:raw)
         try need(try chain.groupPublic(scope)==key.publicKey.x963Representation,"imported key commitment")
-        held[scope]=key;_=try execute(3,scope:scope,group:key,envelope:keccak(parcel))
+        held[scope]=key;heldEpoch[scope]=try chain.keyEpoch(scope,protocolVersion:cfg.protocolVersion)
+        _=try execute(3,scope:scope,group:key,envelope:keccak(parcel))
         return scope
     }
     func send(_ to: String,_ message: [String:Any]) throws {

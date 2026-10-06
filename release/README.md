@@ -28,12 +28,15 @@ provenance statement is not itself proof of reproducibility.
 
 Measured on mini-mesh: both builds matched. Unsigned executable SHA-256:
 `89697437b904571409a94ada5f64a68c9e72078b2606ee9c64bb619adb635f72`.
-This value applies to the present CLI sources, not future GUI releases.
+GitHub run 37545040726 independently reproduced both unsigned bundle files;
+see `independent-build-20261006.json`. These measurements apply to commit
+`d827cfa` and its unchanged CLI build inputs, not subsequent runtime or GUI work.
 
 ## Fork and build with GitHub resources
 
-1. Fork the standalone `apple-attest-p2p` repository once published. The local
-   source repository currently has no GitHub remote; no workflow has run there yet.
+1. Fork [amiller/apple-attest-p2p](https://github.com/amiller/apple-attest-p2p)
+   with access to the private repository. `main` contains the tested release
+   infrastructure; ongoing application work uses `release/mac-distribution`.
 2. Enable Actions. `mac-build.yml` builds on `xcode-27` without Apple credentials.
    GitHub's image moves; the checked-in toolchain lock must still match. Change
    that lock only as a reviewed build input, then obtain fresh measurements.
@@ -124,7 +127,8 @@ Guix build.
 - [x] Locate current implementation and successful Base Sepolia peer evidence.
 - [x] Build the unsigned Mac peer twice from isolated paths; compare bytes.
 - [x] Add credential-free CI and a separate signing/notarization candidate job.
-- [ ] Run the workflow on an independent GitHub host and compare with the mini.
+- [x] Run the workflow on an independent GitHub host and compare with the mini.
+      Both downloaded bundle files match the recorded mini hashes.
 - [x] Unlock existing development keychain; sign and run the new candidate.
 - [x] Match unsigned payload to signed executable; negative mutation tests pass.
 - [x] Capture actual App Attest and verify Apple chain, nonce, production profile,
@@ -144,8 +148,8 @@ Guix build.
 - [ ] Implement the first-run states in `user-flow.md` and a durable HTTPS relay.
 - [ ] Resolve persistent identity, assertion ordering, uncertain transaction
       recovery, certificate expiry and bounded retry behavior.
-- [ ] Resolve faucet recipient semantics: the current relay is Request.owner,
-      so simply invoking Claim would send assets to the sponsor, not the user.
+- [x] Confirm faucet semantics: shared testnet signing key with a verifiable
+      receipt. No wallet or token-claim flow is needed.
 - [ ] Resolve group-key loss: current listen cannot resume after all RAM holders
       exit while the old key remains committed. Do not silently start a new network.
 - [ ] Test restart, lock/unlock, disconnect/reconnect, login launch and update.
@@ -206,15 +210,22 @@ Measured evidence is in `reproducibility-20261006.json`,
 `developer-id-appattest-20261006.json` records the separate Developer ID capture.
 Full private development packages remain on the mini and are not public artifacts.
 
-Current validation: 70 Python tests passed; 34 preexisting contract tests plus
-three new Developer ID tests passed. Generated iOS project regeneration is
-byte-identical. No hosted CI job, external TestFlight submission, persistent
+Current validation: 70 Python tests and all 42 contract tests passed, including
+three Developer ID tests and five epoch tests. Swift V1/V2 request hashes match
+independently generated ABI vectors. Generated iOS project regeneration is
+byte-identical. The first hosted unsigned CI job passed
+([run 37545040726](https://github.com/amiller/apple-attest-p2p/actions/runs/37545040726));
+its downloaded unsigned bundle matches the mini byte for byte. No external TestFlight submission, persistent
 zero-setup participant, or public release has been completed by this branch.
 
 Release work is isolated on `release/mac-distribution`; the active visualization
-checkout is untouched. The GitHub destination and final faucet meaning are pending
-Andrew's answers. The suggested faucet is the existing shared testnet signing key,
-with a verified exchange receipt; its all-holders-restart recovery remains a gate.
+checkout is untouched. The private repository is `amiller/apple-attest-p2p`. The confirmed faucet
+is the shared testnet signing key with a verified exchange receipt; its
+all-holders-restart recovery remains a gate. Experimental `DemoV2` implements
+explicit administrator-controlled key epochs, with five passing policy tests.
+The Swift peer supports the V2 context and opt-in saved enrollment identity and
+compiles on the pinned Mac toolchain; live restart and recovery validation remain
+required before deployment. Existing V1 network deployments are unchanged.
 
 ## Primary references
 
