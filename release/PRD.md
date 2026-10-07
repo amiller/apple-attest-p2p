@@ -2,9 +2,11 @@
 
 Status: RC2 prerelease, 7 October 2026. The signed, notarized Mac app has joined
 the Base Sepolia network, claimed a participant-owned NFT automatically, and
-restored that NFT after reopening the release ZIP. The real run used two
-processes on one Mac; clean second-Mac installation and the independent-team
-Level 2 journey remain unverified. See the [screenshot and transcript](agent-transcript-nft-base.md)
+restored that NFT after reopening the release ZIP. The recorded agent run used two
+processes on one Mac. Gabe subsequently reported successful participation, and
+his NFT 2 mint/ownership were independently verified. A clean second-Mac
+installation/restart capture and the independent-team Level 2 journey remain
+unverified. See the [screenshot and transcript](agent-transcript-nft-base.md)
 and [friend guide](friend-guide.md).
 
 ## The story to send a friend
@@ -159,8 +161,9 @@ and code chains. A network interruption shows the retry delay. Simulator
 scenarios always carry a visible warning and never prove an NFT claim.
 
 After connection, “Developer upgrade” offers “Save invitation” (available after
-Level 1) and “Import upgrade file”. The source implementation supports this
-sequence; uploaded TestFlight build 3 does not contain these controls:
+Level 1) and “Import upgrade file”. Uploaded TestFlight build 5 contains these controls and an encryption
+declaration. Apple reported successful upload and processing; tester access and
+a positive physical-iPhone run remain unverified:
 
 1. Save the invitation in the original app, preserving that app and its keys.
 2. Build and sign the same admitted source with an independent Developer team
@@ -183,3 +186,11 @@ The positive physical-iPhone and second-team runs remain required. Simulator
 consent/file-picker checks do not establish signing, TestFlight measurement,
 network admission, or handoff success. Neither the builder badge nor App Attest
 establishes a unique person or permanently unique physical device.
+
+Build 5 also offers Technical details → Prepare code evidence → Share code
+evidence for the release coordinator. It exports public installed-code inputs
+without a provisioning profile or private keys. This local measurement is not
+Apple attestation. The simulator refuses this export, and the actual iPhone
+export still needs verification. For an error, use Share diagnostic report and
+send the copied text once; do not ask a friend to reset identities or run a
+sequence of terminal diagnostics. See [current TestFlight steps](testflight-review.md).

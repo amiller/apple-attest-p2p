@@ -28,8 +28,21 @@ The cleaned source and RC2 download are now public. Anonymous access to the
 builder guide, PRD and exact app ZIP was verified; see
 `../data/publication-20261007/anonymous-checks.json`. The original provisioning
 history remains in a separate private repository.
-iOS/TestFlight is active; see `iphone-simulator-validation.md` for simulator and
-injected-callback evidence and the remaining hardware/distribution gates.
+iOS/TestFlight build 5 is uploaded; Apple last reported processing. It includes
+the tested upgrade/file flow, installed-code export and diagnostics. All 10
+simulator UI tests, 19 injected callback checks and 16 signed-export parser
+checks passed. The local export also passed a read-only measurement call against
+the deployed iPhone registry at Base Sepolia block 47821039. This is not installed
+TestFlight evidence or real App Attest success. See
+[readiness snapshot](../data/ios-code-evidence-20261007/live-readiness.json),
+[validation](iphone-simulator-validation.md) and
+[operator steps](testflight-review.md).
+
+At that block the network was unpaused, the Mac category enabled, and the iPhone
+category disabled with no baseline. Both relay info routes returned HTTP 200.
+The mini's seed launch agent was present with PID 99676, last exit status 0, and
+a `network reachable` event within 14 seconds of inspection. This is a point-in-
+time availability check, not proof of uninterrupted uptime.
 
 ## Read-only receipt check
 

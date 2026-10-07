@@ -462,3 +462,11 @@ Python exactly. Upload succeeded; Apple reported processing. These are export
 and upload checks, not an installed TestFlight or physical-device success. See
 [build 5 export](iphone-build5-export.json) and
 [upload receipt](iphone-testflight-build5-upload.json).
+
+The deployed iPhone CDRegistry accepted the local build-5 measurement through
+`eth_call` at Base Sepolia block 47821039. The
+[readiness snapshot](../data/ios-code-evidence-20261007/live-readiness.json) records
+the returned measurement, empty iPhone baseline, disabled iPhone category and
+enabled Mac policy. No transactions were sent. This catches format/policy
+integration issues before a friend's device run, but does not substitute for
+Apple's installed TestFlight signature and actual App Attest evidence.

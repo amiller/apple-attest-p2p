@@ -65,3 +65,27 @@ and rejection-test evidence, not a substitute for these acceptance tests.
 The relay briefly returned HTTP 500 during its compatibility deployment, then
 both endpoints passed verification. This happened before this participant run.
 No first-run application failure was observed in the recorded claim journey.
+
+
+## Post-upload readiness check, 7 October
+
+After uploading iPhone build 5 (source `42a0beb`), the agent checked the existing
+network without submitting transactions. The Mac seed launch agent remained
+running and emitted recent `network reachable` events. At block 47821039, the
+network was unpaused, Mac admission enabled, and iPhone admission disabled with
+an empty baseline. Both `/nft/info` and `/ios/info` returned HTTP 200. The iPhone
+registry's read-only `measure` call accepted the signed local build-5 export;
+this does not prove the installed TestFlight executable or Apple attestation.
+See [the exact snapshot](../data/ios-code-evidence-20261007/live-readiness.json).
+
+The friend receipt was rechecked using:
+
+```sh
+python3 scripts/release/verify_badge_receipt.py \
+  --account 0x6e250b3f230bD1912b9cFf13a8FD6209aFE5480b --token 2 \
+  --mint-tx 0x07129281c2b87b9e38ba5ece13a30025a4b4b7619373bdbe3096eba086453379
+```
+
+The output matched `friend-level1-receipt.json`: verified mint/ownership, token 2
+at the friend's account, and `nextId` 3. This does not prove a friend restart or
+a second-team upgrade. Those captures and the actual iPhone run remain pending.
