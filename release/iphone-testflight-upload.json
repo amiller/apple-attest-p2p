@@ -1,0 +1,17 @@
+{
+  "sourceRevision": "dbe6f81",
+  "bundleId": "dev.dsmack.provider",
+  "version": "0.1.0",
+  "build": "3",
+  "team": "DC9JH5DRMY",
+  "archive": "mini-mesh:~/agent-drop/iphone-friend-flow/build/AttestNode-iOS27-configured.xcarchive",
+  "uploadExitCode": 0,
+  "uploadSucceeded": true,
+  "lastObservedAppleState": "Uploaded package is processing",
+  "uploadLogTimestamp": "2026-10-07 13:36:46.895 (Mac local log time)",
+  "submittedVersionEvidence": "Parsed cfBundleShortVersionString/cfBundleVersion fields from ContentDelivery.log JSON",
+  "externalDistributionVerified": false,
+  "installedBuildVerified": false,
+  "iosAdmissionEnabled": false,
+  "scope": "Successful upload; does not prove processing completion, tester assignment, beta review or friend-accessible installation"
+}

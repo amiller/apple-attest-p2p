@@ -196,7 +196,8 @@ macOS availability, or an iOS 27 network run.
 - [x] Generate the node's iOS Xcode project with the existing lab icon and create
       an unsigned device archive on Xcode 27. See the commands below.
 - [x] Sign/export a local App Store Connect IPA; sanitized signing evidence is
-      in `iphone-app-store-export.json` (not uploaded).
+      in `iphone-app-store-export.json`. The configured version 0.1.0/build 3 was
+      subsequently uploaded successfully; see `iphone-testflight-upload.json`.
 - [ ] Finish beta description, review contact/instructions and accurate encryption
       declaration; select the upload build number against live account state.
 - [ ] Add a macOS platform/version to the record if supported and desired; do not
@@ -231,8 +232,9 @@ SwiftUI participant now starts automatically using the pinned network, preserves
 its participant identity, and provides a shareable diagnostic report. Simulator
 UI scenarios and injected native callback tests are recorded in
 [iPhone simulator validation](iphone-simulator-validation.md). This is not yet
-an installable TestFlight release: the iPhone build still needs signing,
-compatible on-chain admission, and a physical iOS 27 acceptance run. Version/build defaults are placeholders; query
+a friend-installable TestFlight release: signing and upload succeeded, but
+processing/distribution, installed-build admission and a physical iOS 27
+acceptance run remain unverified. Version/build defaults are placeholders; query
 live App Store Connect state before assigning the upload build number.
 
 Measured evidence is in `reproducibility-20261006.json`,

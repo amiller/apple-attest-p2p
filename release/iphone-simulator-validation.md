@@ -9,8 +9,9 @@ app, including OS/app versions, the failed Apple operation and nested error code
 
 **Not yet a TestFlight release.** A separate iPhone category is now deployed on
 Base Sepolia but disabled, with no admitted executable. The configured iPhone
-IPA is signed/exported locally. Upload, installed TestFlight measurement and
-iPhone activation remain pending; the working Mac policy is unchanged. The simulator success scenario
+IPA was signed/exported and uploaded as version 0.1.0/build 3. Processing,
+beta distribution, installed TestFlight measurement and iPhone activation remain
+unverified; the working Mac policy is unchanged. The simulator success scenario
 uses injected events: it does not attest, obtain a key, or mint an NFT.
 
 Evidence: [`data/ios-simulator-20261007/reviewed`](../data/ios-simulator-20261007/reviewed),
@@ -239,8 +240,24 @@ report are in
 The signed configured IPA export succeeded and passed strict signature checks;
 its hashes and source configuration digest are recorded in
 [`iphone-configured-export.json`](iphone-configured-export.json). The earlier
-unconfigured IPA is superseded. Neither IPA has been uploaded.
+unconfigured IPA is superseded. The configured archive was subsequently uploaded successfully as recorded below.
 
 The public category is **not activated** merely because its addresses and relay
 route exist. Installed TestFlight measurement/admission, beta distribution and
 the second-team signing/upgrade journey remain open acceptance work.
+
+
+## App Store Connect upload
+
+The configured archive was exported with `destination=upload`, automatic signing
+and `manageAppVersionAndBuildNumber=true`. Xcode returned exit 0 and reported
+“Upload succeeded.” Structured metadata in `ContentDelivery.log` confirms version
+0.1.0/build 3. The last observed Apple state was “Uploaded package is processing”;
+this is not evidence processing has finished or that a tester can install it.
+The upload process itself completed and should not be restarted merely because
+the beta distribution state is not yet queried.
+
+Sanitized evidence is in [`iphone-testflight-upload.json`](iphone-testflight-upload.json).
+No authentication logs or credentials are committed. iPhone admission remains
+disabled. The planned beta text and acceptance sequence are in
+[`testflight-review.md`](testflight-review.md).
