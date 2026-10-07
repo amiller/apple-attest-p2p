@@ -35,8 +35,9 @@ registries and the sponsor journal has no pending transactions. Its completed
 count advanced from seven to eight while the legacy network remained active.
 An initial HTTP 500 during redeployment cleared after startup.
 
-Remaining rollout steps: activate only the NFT network; run a separate persistent
-NFT seed using `release/nft-seed.json`; verify an automatic
-participant claim, restart, and receipt ownership; package the release and real
-screenshots. Keep the original seed running. Clean second-Mac and independent
-developer-team acceptance remain separate required tests.
+The NFT network is now active, its separate user-session seed is running, and
+its notarized candidate automatically claimed a participant NFT on Base Sepolia.
+Reopening the packaged ZIP restored the same NFT with no duplicate mint. See
+[the real transcript and screenshot](agent-transcript-nft-base.md).
+The original seed remains running. Clean second-Mac and independent
+developer-team acceptance remain required tests.

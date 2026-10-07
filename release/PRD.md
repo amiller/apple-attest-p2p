@@ -1,12 +1,13 @@
 # Join the testnet, then become an independent builder
 
 Status: product acceptance plan, 6 October 2026. The published Mac release proves
-network admission and shared-key exchange. An isolated real-Mac run now proves
-automatic participant NFT minting and restart recovery. Neither friend-facing
+network admission and shared-key exchange. A notarized real-Mac candidate now proves
+automatic participant NFT minting on Base Sepolia; earlier isolated tests also
+proved restart recovery. Neither friend-facing
 release journey below is complete.
 The [claim contracts and evidence checks](nft-implementation.md) are implemented
 locally; Level 1 app integration has passed isolated real-device validation.
-See the [actual screenshot and agent transcript](agent-transcript-nft.md).
+See the [actual Base Sepolia screenshot and agent transcript](agent-transcript-nft-base.md).
 Public distribution and Level 2 live validation remain pending.
 
 ## The story to send a friend
