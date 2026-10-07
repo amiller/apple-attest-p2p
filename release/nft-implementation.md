@@ -13,8 +13,28 @@ The recipient also signs the claim digest, using an EOA or an ERC-1271 personal
 account. The relay cannot change the recipient, level, parent, key identity, or
 deadline. It may submit the transaction and pay gas. The intended zero-setup
 client creates a personal account locally; its key is distinct from the shared
-network key. Personal account implementation, persistence, recovery and the
-cross-team handoff remain to be implemented and tested.
+network key. `PersonalBadgeAccount` and its deterministic factory now implement that personal
+recipient. The account accepts badge consent only from the configured badge
+contract. Consent binds chain, account, and control generation. A handoff requires
+both current-key approval and new-key proof of possession, binds a deadline, and
+increments the generation so prior approvals cannot revive even if a key is
+later reused. The account does not execute arbitrary calls or support spending
+funds; it is a narrow NFT-control account, not a general wallet.
+
+The Mac `PersonalAccountKey` implementation stores a separate P-256 software key
+in the signed app's non-synchronizing, device-only data-protection Keychain. It
+fails on Keychain errors instead of replacing an inaccessible identity. A signed
+Mac test passed create/reload/sign with a random test scope and removed its own
+entry afterward. CryptoKit-generated consent and handoff signatures also passed
+Solidity P-256 verification. Tests use publicly known fixture keys only in the
+vector executable, never in the participant or Keychain test.
+
+App integration and the user-facing handoff remain pending. The handoff will
+exchange public keys and narrowly bound signatures, never the private key.
+Retain the original app/key until the handoff confirms. There is no sponsor reset
+or recovery backdoor: losing the controlling key before handoff loses control of
+this research receipt. This limitation must be visible before the user deletes
+an installation; it must not be described as permanent hardware identity.
 
 The evidence-enabled Apple adapter stores only successfully verified assertion
 context, CDHash, RP hash, counter, and verification time. Enrollment alone is not
@@ -50,3 +70,18 @@ not a device integration test. `AppleAttestRegistryV1Test` separately exercises
 actual Apple certificate/assertion fixtures and verifies that failures/replays do
 not write successful assertion evidence. Neither substitutes for the pending
 second-team, real-device NFT journey and screenshots.
+
+
+Mac validation (local signing keychain already unlocked):
+
+```sh
+python3 scripts/release/test_personal_account_mac.py --out build/account-tests \
+  --identity "$MAC_SIGNING_IDENTITY" --keychain "$SIGNING_KEYCHAIN" \
+  --profile "$MAC_PROFILE" --entitlements "$MAC_ENTITLEMENTS" \
+  --bundle-id "$APPLE_BUNDLE_ID"
+```
+
+Use an unused output directory. The signed development test bundle includes a
+provisioning profile and stays private. `results.json` contains only public test
+vectors and the persistence-test result. Its scope is component validation, not
+screenshots or evidence that the friend's complete NFT journey already works.

@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
+import {PersonalBadgeAccount,PersonalBadgeAccountFactory} from "../src/application/PersonalBadgeAccount.sol";
+import {P256Verifier} from "./P256Verifier.sol";
 import {Test} from "forge-std/Test.sol";
 import {ResearchBadges} from "../src/application/ResearchBadges.sol";
 import {DemoV1} from "../src/application/DemoV1.sol";
@@ -111,6 +113,30 @@ contract ResearchBadgesTest is Test {
         ResearchBadges other=new ResearchBadges(network,AppleAttestRegistryV1(address(adapter)),category,PUBLISHER);
         DemoV1.Request memory r;
         vm.expectRevert("recipient consent");other.claim(c,r,sig);
+    }
+    function test_PersonalAccountHandoffThenBuilderClaim() public {
+        P256Verifier verifier=new P256Verifier();vm.etch(address(0x100),address(verifier).code);
+        PersonalBadgeAccountFactory factory=new PersonalBadgeAccountFactory(address(badge));
+        PersonalBadgeAccount account=factory.create(
+            0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296,
+            0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5);
+        recipient=address(account);
+        (ResearchBadges.Claim memory c,DemoV1.Request memory r,)=prepare(1,0,PUBLISHER);
+        (bytes32 a,bytes32 b)=vm.signP256(1,account.consentDigest(badge.claimDigest(c)));
+        uint256 parent=badge.claim(c,r,abi.encodePacked(a,b));
+        uint256 nx=0x7cf27b188d034f7e8a52380304b51ac3c08969e277f21b35a60b48fc47669978;
+        uint256 ny=0x07775510db8ed040293d9ac69f7430dbba7dade63ce982299e04b79d227873d1;
+        uint64 deadline=uint64(block.timestamp+300);
+        bytes32 handoff=account.handoffDigest(nx,ny,deadline);
+        (a,b)=vm.signP256(1,handoff);bytes memory original=abi.encodePacked(a,b);
+        (a,b)=vm.signP256(2,handoff);account.handoff(nx,ny,deadline,original,abi.encodePacked(a,b));
+        (c,r,)=prepare(2,parent,FRIEND);
+        (a,b)=vm.signP256(1,account.consentDigest(badge.claimDigest(c)));
+        vm.expectRevert("recipient consent");badge.claim(c,r,abi.encodePacked(a,b));
+        (a,b)=vm.signP256(2,account.consentDigest(badge.claimDigest(c)));
+        uint256 builder=badge.claim(c,r,abi.encodePacked(a,b));
+        assertEq(badge.ownerOf(parent),address(account));assertEq(badge.ownerOf(builder),address(account));
+        assertTrue(badge.upgraded(parent));
     }
     function test_NFTCannotTransfer() public {
         uint256 id=participant();vm.prank(recipient);vm.expectRevert("non-transferable");badge.transferFrom(recipient,address(123),id);
