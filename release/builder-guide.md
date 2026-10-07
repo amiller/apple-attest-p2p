@@ -1,8 +1,8 @@
 # Earn the independent-builder NFT
 
-**Preview status:** this flow is implemented in the working branch, but the
-NFT-enabled public release and a live second-team acceptance run are still
-pending. Do not send these steps as a completed release announcement yet.
+**Preview status:** RC2 is published and its Level 1 NFT flow is verified on Base
+Sepolia. The independent-team upgrade is implemented but its live second-team
+acceptance run remains pending.
 
 You need a paid Apple Developer team different from the release publisher's,
 a supported Mac, the pinned Xcode toolchain, and permission to sign for that team.
@@ -20,7 +20,8 @@ your private key or authorize anyone to take control of the account.
 
 ## 2. Build and sign your own copy
 
-Fork the exact source revision of the NFT-enabled release. Keep executable source
+With access to the private repository, fork tag `v0.1.0-rc.2` (app build source
+`adda809826358d2466b74a2f206c5921f75443a1`). Keep executable source
 unchanged so the network can recognize the code. Use the exact `bundleId` saved in your invitation and create a matching explicit
 App ID and provisioning profile under your team. Set `APPLE_BUNDLE_ID` to that
 value. The identifier includes your personal NFT account address; a generic
@@ -54,6 +55,7 @@ Developer account; do not turn off attestation or modify the app to bypass it.
 After signing/notarization, register that exact app with the NFT-enabled relay:
 
 ```sh
+export TESTNET_RELAY="https://pod.dstack.soc1024.com/apple-attest-p2p-relay/nft"
 python3 scripts/release/register_mac_build.py \
   --app /path/to/AttestNode.app --relay "$TESTNET_RELAY"
 ```
@@ -63,7 +65,8 @@ first code page, and sealed entitlements. It sends no provisioning profile or
 private key. The sponsor pays testnet gas, and the contract checks that the code
 matches the admitted baseline. Registration alone does not prove a valid Apple
 signing account; opening the app and producing live App Attest evidence does.
-The old public release has NFT routes disabled and cannot complete this step yet.
+The original root relay endpoint serves the older shared-key release. Use the
+`/nft` endpoint above for this upgrade.
 
 ## 4. Link the independently signed copy
 
