@@ -68,6 +68,27 @@ contract CDRegistryTest is Test {
         e = rd("A-original", ".ent"); for (uint256 i = 47; i < 57; i++) e[i] = "Z";     // application-identifier value
         assertEq(r.rpIdHash(admit(r, withEnt(e), page0, e)), sha256("ZZZZZZZZZZ.dev.dsmack.provider"));
     }
+    function test_teamMetadataRequiresSealedEntitlements() public {
+        CDRegistry r = mac();
+        bytes memory page0 = rd("A-original", ".page0");
+        bytes memory ent = rd("A-original", ".ent");
+        bytes32 original = file(r, "A-original");
+        assertEq(r.teamIdHash(original), sha256("DC9JH5DRMY"));
+        for (uint256 i = 181; i < 191; i++) ent[i] = "Z";
+        vm.expectRevert("entitlements slot");
+        r.registerBuild(rd("A-original", ".cd"), page0, ent);
+        bytes32 changed = r.registerBuild(withEnt(ent), page0, ent);
+        assertTrue(changed != original);
+        assertEq(r.teamIdHash(changed), sha256("ZZZZZZZZZZ"));
+        assertEq(r.teamIdHash(original), sha256("DC9JH5DRMY"));
+        // Registration alone accepts structurally valid metadata, not an Apple
+        // signature. Builder awards must require live attestation of changed.
+        ent[181] = "!";
+        bytes memory malformedCD = withEnt(ent);
+        vm.expectRevert("team-identifier");
+        r.registerBuild(malformedCD, page0, ent);
+        assertEq(r.teamIdHash(bytes32(uint256(123))), 0);
+    }
     function test_ownerSetsBuildAndOldBuildsStopResolving() public {
         CDRegistry r = mac();
         bytes32 a = file(r, "A-original");
@@ -75,6 +96,7 @@ contract CDRegistryTest is Test {
         vm.prank(address(1)); vm.expectRevert("owner"); r.setBuild(cd, page0, ent, 2880, 5120);
         r.setBuild(cd, page0, ent, 2880, 5120);
         assertEq(r.rpIdHash(a), 0);
+        assertEq(r.teamIdHash(a), 0);
         assertEq(r.rpIdHash(admit(r, cd, page0, ent)), OURS);
     }
     function test_iphoneBuild() public {
@@ -94,10 +116,12 @@ contract CDRegistryTest is Test {
         bytes32 h = r.registerBuild(cd, page0, ent);
         emit log_named_uint("darkbloom-eigen registerBuild exec gas", vm.lastCallGas().gasTotalUsed);
         assertEq(r.rpIdHash(h), sha256("SLDQ2GJ6TL.io.darkbloom.provider"));
+        assertEq(r.teamIdHash(h), 0); // This older build has no explicit team entitlement.
         (cd, page0, ent) = json("darkbloom-ours-ent");
         bytes32 o = admit(r, cd, page0, ent);
         assertTrue(o != h);
         assertEq(r.rpIdHash(o), sha256("DC9JH5DRMY.io.darkbloom.provider"));
+        assertEq(r.teamIdHash(o), 0); // Do not infer a team from an App ID prefix.
         // Same file re-signed without entitlements: no app-attest opt-in, network or push entitlements.
         (cd, page0, ent) = json("darkbloom-ours");
         vm.expectRevert("entitlements slot"); r.registerBuild(cd, page0, ent);

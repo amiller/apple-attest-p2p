@@ -1,0 +1,124 @@
+# Join the testnet, then become an independent builder
+
+Status: product acceptance plan, 6 October 2026. The existing Mac release proves
+network admission and shared-key exchange. Neither NFT level below is complete.
+The [claim contracts and evidence checks](nft-implementation.md) are implemented
+locally; app integration and live validation are still pending.
+
+## The story to send a friend
+
+“Open AttestNode on your Mac. It joins our research network automatically and
+gives you a participant NFT as a receipt. If you want to go further, build and
+sign the same app using your own Apple Developer team. Run that copy to earn the
+independent-builder NFT. Both receipts are testnet souvenirs with no monetary
+value.”
+
+The first experience requires no developer account, terminal commands, wallet
+setup, gas purchase, or network configuration. Download access and the normal
+macOS first-open confirmation are separate from application setup. The current
+private GitHub release requires repository access; the friend handoff must
+provide a working download link and state the supported Mac/OS requirements.
+
+## Level 1: participant
+
+1. Download, extract, and open the signed, notarized app.
+2. See “Connecting to the testnet”, followed by “Verifying this app” and
+   “Getting the shared testnet key”. Progress describes verified events.
+3. See “You’re connected”, a verified key receipt, and the participant NFT after
+   its claim transaction confirms. Claiming is automatic and sponsored.
+4. Open the NFT receipt to inspect its network, contract, token, recipient, and
+   transaction. The receipt explains what was proven.
+5. Close the window to keep participating from the menu bar. Quit stops the peer.
+   Reopen to reconnect without duplicating a completed claim.
+
+The NFT belongs to a participant-specific identity/account. The relay pays gas
+but must not receive the participant's NFT. The shared network signing key cannot
+serve as personal ownership: every participating peer intentionally receives it.
+Choose and document personal ownership, recovery, and migration before shipping
+the claim path. A lost installation must not silently be represented as the same
+participant or as a provably new physical device.
+
+## Level 2: independent builder
+
+1. From the connected app, choose “Run with your own Apple Developer team”.
+2. Follow one concise guide to fork/build the pinned source and sign locally
+   with Xcode, or configure the protected GitHub signing workflow. Keep Apple
+   credentials in Xcode/Keychain or the user's own CI secrets.
+3. Verify that the unsigned executable matches the published reproducible build.
+4. Register/admit the independently signed copy under the code policy, then run
+   it and prove its signing identity through verified attestation.
+5. Link the new installation to the original participant with an authenticated
+   handoff, and confirm the builder NFT. A typed Team ID alone is not evidence.
+
+The first independent-builder demonstration requires a signing team different
+from the release publisher's team. A developer team may represent an organization
+with multiple people. The badge proves a verified independent signing team and
+admitted code, not a unique human. Admission requirements and any manual operator
+step must be visible in the guide; a successful CI build alone is insufficient.
+
+## Identity and repeat claims
+
+| Identifier | What it establishes | What it does not establish |
+|---|---|---|
+| App Attest key / member ID | An enrolled app key; claims can be idempotent for that key | Permanent Mac identity or unique owner |
+| Personal NFT recipient | Continuity of the chosen personal account | One person or one physical Mac |
+| Verified Apple signing team | The team bound to an admitted signed app | One human; one machine |
+| Shared testnet key | Participation in the current key epoch | Individual identity or exclusive ownership |
+
+Apple documents that App Attest keys survive app updates but are invalidated by
+reinstall or device restore. Its fraud metric is a risk signal, not an exported
+stable hardware identifier. Therefore this release must not advertise “exactly
+one signup per Mac mini owner”. Claim limits must name their actual scope.
+If stronger anti-duplicate admission becomes a requirement, it needs a separate
+policy and evidence source; this PRD does not pretend App Attest supplies it.
+
+Source: [Apple: Secure your apps with App Attest](https://developer.apple.com/videos/play/wwdc2026/201/).
+
+## Failure states
+
+- Network or faucet unavailable: explain the delay and retry automatically;
+  preserve enrollment and pending claims.
+- Unsupported Mac/OS/security state: explain why participation cannot proceed.
+- Unadmitted build: show the admission/update step; do not show success.
+- Submitted NFT transaction: show “Claim pending” until confirmed; never equate
+  transaction submission with ownership.
+- Already claimed: show the existing receipt, including after retry/restart.
+- Developer-team setup incomplete: retain Level 1 and identify the remaining step.
+
+## Definition of done
+
+- [ ] A friend can access the exact signed release and complete Level 1 on a
+  second Mac with Gatekeeper enabled, without developer assistance.
+- [ ] The confirmed participant NFT belongs to the friend-specific recipient,
+  and duplicate/restarted submissions do not mint another claim for that identity.
+- [ ] A second Apple signing team completes Level 2 with an authenticated link
+  back to that participant and a confirmed builder NFT.
+- [ ] The short friend guide includes real screenshots of first launch,
+  connected/claimed state, developer setup, and builder success. Mockups and
+  screenshots from an earlier app version cannot substitute for acceptance.
+- [ ] A redacted agent transcript records exact release/commit, launch/build
+  commands, structured events, expected versus observed results, NFT ownership,
+  transaction links, retries, and both signing identities. Include failures.
+- [ ] Reproduction instructions let another agent check the same claims without
+  Apple passwords, private keys, or undocumented operator knowledge.
+- [ ] Documentation explicitly names the claim-limit scope, ownership/recovery
+  behavior, administrative trust, hardware prerequisites, and remaining limits.
+
+The goal stays open while screenshots or either NFT journey are unverified.
+Existing evidence: [Mac release checklist](README.md),
+[current shared-key user flow](user-flow.md), and
+[published release manifest](v0.1.0-rc.1.json).
+
+## Implementation order
+
+1. Resolve participant ownership and secure continuity across signing teams.
+2. Add participant-owned claims with replay protection; the legacy Claim action
+   currently mints to the sponsor in the sponsored flow and cannot be reused as-is.
+3. Add verified builder eligibility and Level 1-to-Level 2 linking, including
+   rejection tests for arbitrary team labels, wrong code, and replayed handoffs.
+4. Implement the simple status/receipt screens and the fork-and-sign guide.
+5. Run both journeys, capture screenshots/transcript, and package the friend handoff.
+
+iOS/TestFlight remains a subsequent distribution track. Its device/account and
+review requirements must be documented and tested separately; the first friend
+acceptance run is macOS.

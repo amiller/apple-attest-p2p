@@ -34,6 +34,7 @@ contract CDRegistry {
     bytes32 public buildId;
     mapping(bytes32 => bytes32) rp;
     mapping(bytes32 => bytes32) buildOf;
+    mapping(bytes32 => bytes32) team;
     function be32(bytes calldata b, uint256 o) internal pure returns (uint256) { return uint32(bytes4(b[o:o + 4])); }
     function maskedHash(bytes memory p, uint256 linkedit, uint256 codeSig) public pure returns (bytes32 h) {
         assembly {
@@ -46,6 +47,11 @@ contract CDRegistry {
     }
     /// Hash of the entitlement shape (identity values blanked) and sha256(application-identifier).
     function entitlements(bytes memory der) public pure returns (bytes32 shape, bytes32 app) {
+        (shape, app,) = entitlementIdentity(der);
+    }
+    /// Identity metadata is sealed by the CDHash, but is not proof of execution.
+    /// Consumers must also verify a live Apple assertion for that CDHash/RP pair.
+    function entitlementIdentity(bytes memory der) public pure returns (bytes32 shape, bytes32 app, bytes32 teamHash) {
         StrictDER.Node memory outer = StrictDER.expect(der, 0, der.length, 0x70);
         StrictDER.Node memory version = StrictDER.expect(der, outer.body, outer.end, 0x02);
         require(outer.end == der.length && version.end == version.body + 1 && der[version.body] == 0x01, "entitlements");
@@ -61,7 +67,17 @@ contract CDRegistry {
                 require(app == 0 && value.tag == 0x0c, "application-identifier");
                 app = sha256(StrictDER.contents(der, value));
                 shape = keccak256(abi.encode(shape, k));
-            } else if (k == keccak256("com.apple.developer.team-identifier") || k == keccak256("keychain-access-groups")) {
+            } else if (k == keccak256("com.apple.developer.team-identifier")) {
+                require(teamHash == 0 && value.tag == 0x0c, "team-identifier");
+                bytes memory identifier = StrictDER.contents(der, value);
+                require(identifier.length == 10, "team-identifier");
+                for (uint256 i; i < identifier.length; i++) {
+                    bytes1 ch = identifier[i];
+                    require((ch >= "A" && ch <= "Z") || (ch >= "0" && ch <= "9"), "team-identifier");
+                }
+                teamHash = sha256(identifier);
+                shape = keccak256(abi.encode(shape, k));
+            } else if (k == keccak256("keychain-access-groups")) {
                 shape = keccak256(abi.encode(shape, k));
             } else shape = keccak256(abi.encode(shape, keccak256(StrictDER.encoded(der, pair))));
             p = pair.end;
@@ -100,8 +116,11 @@ contract CDRegistry {
         require(b.entitlements == a.entitlements, "entitlements");
         h = sha256(cd);
         rp[h] = app;
+        (,,team[h]) = entitlementIdentity(ent);
         buildOf[h] = buildId;
     }
     function rpIdHash(bytes32 h) public view returns (bytes32) { return buildOf[h] == buildId ? rp[h] : bytes32(0); }
+    /// Zero when absent or no longer admitted under the current approved build.
+    function teamIdHash(bytes32 h) public view returns (bytes32) { return rpIdHash(h) != 0 ? team[h] : bytes32(0); }
     function isAdmitted(bytes32 h) external view returns (bool) { return rpIdHash(h) != 0; }
 }

@@ -35,6 +35,25 @@ contract AppleAttestRegistryV1Test is Test {
         (context,proof)=assertion("restored");assertEq(adapter.verify(context,proof),kid);
         (,,,uint32 count,)=adapter.keys(kid);assertEq(count,3);
     }
+    function test_ReceiptEvidenceRequiresSuccessfulFreshAssertion() public {
+        mac(true);adapter.enroll(cert,auth,clientData);
+        (bytes32 recorded,,,,)=adapter.assertionEvidence(kid);assertEq(recorded,0);
+        (bytes32 context,bytes memory proof)=assertion("assert");
+        adapter.verify(context,proof);
+        (bytes32 c,bytes32 cdhash,bytes32 rp,uint64 checkedAt,uint32 counter)=adapter.assertionEvidence(kid);
+        assertEq(c,context);assertEq(cdhash,vm.parseJsonBytes32(fixture,".cdhash"));
+        assertEq(rp,OURS);assertEq(checkedAt,block.timestamp);assertEq(counter,1);
+        vm.expectRevert("assertion replay");adapter.verify(context,proof);
+        (context,proof)=assertion("modified");
+        vm.expectRevert("build not admitted");adapter.verify(context,proof);
+        (recorded,,,,)=adapter.assertionEvidence(kid);assertEq(recorded,c);
+        (context,proof)=assertion("restored");
+        vm.expectRevert("assertion signature");adapter.verify(bytes32(uint256(123)),proof);
+        (recorded,,,,)=adapter.assertionEvidence(kid);assertEq(recorded,c);
+        adapter.verify(context,proof);
+        (recorded,,,,counter)=adapter.assertionEvidence(kid);
+        assertEq(recorded,context);assertEq(counter,3);
+    }
     function test_MacUnregisteredBuildRejected() public {mac(false);vm.expectRevert("build not admitted");adapter.enroll(cert,auth,clientData);}
     function test_IPhoneEnrollAndAssertThroughRegistry() public {
         iphone(true);assertEq(adapter.enroll(cert,auth,clientData),kid);

@@ -18,6 +18,11 @@ abstract contract AppleAttest {
     bytes32 constant IOS_ACL=keccak256(hex"3049a347044530430c023131303d300a0c036f6b64a1030101ff30090c026f61a1030101ff300b0c046f73676ea1030101ff300b0c046f64656ca1030101ff300a0c036f636ba1030101ff");
     struct Key {uint256 x;uint256 y;uint64 expires;uint32 counter;bool enrolled;}
     mapping(bytes32=>Key) public keys;
+    /// Latest successfully verified assertion, for downstream receipt checks.
+    /// Enrollment alone does not populate this record. Consumers must bind the
+    /// exact context to their action and enforce their own replay/expiry policy.
+    struct AssertionEvidence {bytes32 context;bytes32 cdhash;bytes32 rp;uint64 checkedAt;uint32 counter;}
+    mapping(bytes32=>AssertionEvidence) public assertionEvidence;
     event Enrolled(bytes32 indexed keyId,uint64 expires);
     event Asserted(bytes32 indexed keyId,uint32 counter,bytes32 context);
     constructor(address registry_,bytes16 aaguid_,uint32 category_,bool ios_){
@@ -49,6 +54,8 @@ abstract contract AppleAttest {
         bytes32 digest=sha256(abi.encodePacked(sha256(abi.encodePacked(auth,context))));
         (bool ok,bytes memory result)=address(0x100).staticcall(abi.encode(digest,r,s,k.x,k.y));
         require(ok && result.length==32 && abi.decode(result,(uint256))==1,"assertion signature");
-        k.counter=count;emit Asserted(kid,count,context);
+        k.counter=count;
+        assertionEvidence[kid]=AssertionEvidence(context,cdhash,rp,uint64(block.timestamp),count);
+        emit Asserted(kid,count,context);
     }
 }
