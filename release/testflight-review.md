@@ -1,7 +1,8 @@
 # TestFlight handoff and review preparation
 
-Status: version 0.1.0/build 3 uploaded successfully. Processing completion,
-compliance status, tester assignment and beta review are not yet verified. This
+Status: version 0.1.0/build 3 uploaded successfully. The user-provided App Store
+Connect screenshot shows **Missing Compliance**. Tester assignment and beta
+review are not yet verified. This
 is a diagnostic candidate, not a claim that friends can already join from it.
 The published iPhone category is disabled pending installed-build admission.
 Do not use the public-beta text below until the positive device run passes.
@@ -48,8 +49,10 @@ losing its account key can lose control of its research account.
    account, NFT, quit/reopen without duplication, and copied diagnostic report.
 5. Finish external-beta metadata/review/group setup and verify a friend-accessible
    TestFlight link. Publish that exact tested link and the observed limitations.
-6. Complete the independent-team signing and upgrade flow separately. The iPhone
-   UI currently does not offer the Mac's invitation/request handoff controls.
+6. Complete the independent-team signing and upgrade flow separately. Source
+   work adds invitation/request import/export and explicit account-transfer
+   consent. These controls are not included in uploaded build 3 and do not yet
+   have a positive second-team device acceptance run.
 
 The app encrypts peer parcels with Apple's CryptoKit (P256 key agreement, HKDF,
 AES-GCM), uses system TLS, and stores personal keys through Security/Keychain.
@@ -57,5 +60,6 @@ The local Keccak implementation is hashing, not an encryption implementation.
 Apple's [encryption documentation table](https://developer.apple.com/help/app-store-connect/reference/export-compliance-documentation-for-encryption/)
 identifies OS-only encryption as not requiring uploaded encryption documentation.
 The uploaded candidate lacks an explicit `ITSAppUsesNonExemptEncryption` entry;
-its App Store Connect compliance state has not been inspected. Reassess this
+the screenshot confirms its declaration is pending. The source generator now
+sets `ITSAppUsesNonExemptEncryption=false` for future builds. Reassess this
 classification if a fork adds encryption implementations or libraries.

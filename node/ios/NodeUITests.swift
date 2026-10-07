@@ -44,6 +44,56 @@ final class NodeUITests:XCTestCase {
         XCTAssertTrue(app.staticTexts["Participant NFT #42 confirmed"].exists)
         capture("SIMULATED-claimed")
     }
+    func testUpgradeControlsAndFilePicker() {
+        let app = launch("claimed")
+        app.buttons["Developer upgrade"].tap()
+        XCTAssertTrue(app.buttons["Save invitation"].isEnabled)
+        app.buttons["Import upgrade file"].tap()
+        XCTAssertTrue(app.buttons["Cancel"].waitForExistence(timeout:5))
+        capture("SIMULATED-upgrade-file-picker")
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(app.buttons["Save invitation"].waitForExistence(timeout:5))
+        // A simulator scenario cannot accidentally invoke a real signer.
+        app.buttons["Save invitation"].tap()
+        XCTAssertTrue(app.staticTexts["Connect to the network before continuing the upgrade."].waitForExistence(timeout:5))
+    }
+    func testUpgradeConsentAndCancellation() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment["ATTESTNODE_UI_SCENARIO"] = "upgrade-approval"
+        app.launch()
+        XCTAssertTrue(app.buttons["Approve handoff"].waitForExistence(timeout:10))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format:"label CONTAINS %@", "SIMULATED-ACCOUNT")).firstMatch.exists)
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format:"label CONTAINS %@", "SIMULATED-TEAM")).firstMatch.exists)
+        capture("SIMULATED-upgrade-consent")
+        app.buttons["Cancel"].tap()
+        XCTAssertFalse(app.buttons["Approve handoff"].exists)
+        XCTAssertFalse(app.staticTexts["Connect to the network before continuing the upgrade."].exists)
+        XCTAssertTrue(app.staticTexts["Participant NFT #42 confirmed"].exists)
+        app.terminate();app.launch()
+        XCTAssertTrue(app.buttons["Approve handoff"].waitForExistence(timeout:10))
+        app.buttons["Approve handoff"].tap()
+        // Proves the presented request reached the action after modal dismissal;
+        // the fixture has no Node, so no signing/network operation can occur.
+        XCTAssertTrue(app.staticTexts["Connect to the network before continuing the upgrade."].waitForExistence(timeout:5))
+        XCTAssertFalse(app.staticTexts["Account handoff confirmed. Continue in your independently signed copy to claim the builder NFT."].exists)
+    }
+    func testUpgradeRejectsMalformedAndOversizedFiles() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        for (scenario,message) in [
+            ("upgrade-invalid-file","This is not an AttestNode upgrade invitation or request."),
+            ("upgrade-oversize-file","Upgrade file must be at most 64 KiB")
+        ] {
+            app.launchEnvironment["ATTESTNODE_UI_SCENARIO"] = scenario
+            app.launch()
+            XCTAssertTrue(app.staticTexts[message].waitForExistence(timeout:10))
+            XCTAssertFalse(app.buttons["Approve handoff"].exists)
+            capture("SIMULATED-"+scenario)
+            app.buttons["OK"].tap()
+            app.terminate()
+        }
+    }
     func testRetry() {
         let app = launch("retry")
         XCTAssertTrue(app.staticTexts["Waiting to reconnect…"].exists)

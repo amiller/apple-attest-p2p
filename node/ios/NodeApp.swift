@@ -1,5 +1,6 @@
 import SwiftUI
 import DeviceCheck
+import UniformTypeIdentifiers
 
 @main struct NodeApp: App {
     var body: some Scene {WindowGroup {NodeView()}}
@@ -14,6 +15,17 @@ final class ParticipantModel: ObservableObject {
     @Published var receiptURL: URL?
     @Published var lines = [String]()
     @Published var simulatorScenario = false
+    @Published var connected = false
+    @Published var participantClaimed = false
+    @Published var upgradeBusy = false
+    @Published var upgradeNotice:String?
+    @Published var exportDocument:UpgradeDocument?
+    @Published var exportName = "AttestNode-upgrade-invitation.json"
+    @Published var showingExport = false
+    @Published var approval:UpgradeRequest?
+    @Published var approvalTeam = ""
+    private var exportedRequest:UpgradeRequest?
+    private var node:Node?
     private var started = false
 
     func start() {
@@ -28,6 +40,25 @@ final class ParticipantModel: ObservableObject {
             emit("configured",["chainId":84532,"participant":"SIMULATED"])
             switch scenario {
             case "claimed":emit("participating",[:]);emit("badge claimed",["badgeToken":42])
+            case "upgrade-approval":
+                emit("participating",[:]);emit("badge claimed",["badgeToken":42])
+                // Deliberately invalid fixture: UI consent only, no Node or signer.
+                let invitation = UpgradeInvitation(version:2,chainId:84532,badges:"SIMULATED",factory:"SIMULATED",account:"SIMULATED-ACCOUNT",participantToken:42,bundleId:"SIMULATED")
+                let receipt = Request(action:3,category:zero32,owner:"SIMULATED",session:zero32,nonce:0,deadline:0,scope:zero32,x:zero32,y:zero32,envelope:zero32)
+                DispatchQueue.main.async {
+                    self.approvalTeam = "SIMULATED-TEAM"
+                    self.approval = UpgradeRequest(invitation:invitation,newPoint:Data([4])+Data(repeating:0,count:64),generation:0,deadline:0,newSignature:Data(),newKeyId:zero32,receiptRequest:receipt,receiptTransaction:"SIMULATED")
+                }
+            case "upgrade-invalid-file", "upgrade-oversize-file":
+                emit("participating",[:])
+                DispatchQueue.main.async {
+                    let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString+".json")
+                    defer {try? FileManager.default.removeItem(at:url)}
+                    do {
+                        try Data(repeating:65,count:scenario == "upgrade-oversize-file" ? 65537:8).write(to:url)
+                        self.importUpgrade(url)
+                    } catch {self.upgradeNotice = String(describing:error)}
+                }
             case "retry":emit("retrying",["retryAfterSeconds":4,"error":"Injected network outage"])
             case "apple-failure":
                 emit("apple operation failed",["stage":"attestKey","errorChain":[["domain":"com.apple.devicecheck.error","code":0],["domain":"CryptoTokenKit","code":-3]]])
@@ -53,6 +84,7 @@ final class ParticipantModel: ObservableObject {
                 emit("stopped",["error":"App Attest unsupported on this device","appAttestSupported":false]);return
             }
             let node = Node(config,log:emit)
+            DispatchQueue.main.async {self.node = node}
             var delay:Double = 2
             while true {
                 do {try node.participate();return}
@@ -72,6 +104,71 @@ final class ParticipantModel: ObservableObject {
             }
         } catch {emit("stopped",["error":String(describing:error)])}
     }
+    private func perform<T>(_ operation:@escaping (Node)throws->T,done:@escaping(T)->Void) {
+        guard !upgradeBusy,connected,let node else {upgradeNotice = "Connect to the network before continuing the upgrade.";return}
+        upgradeBusy = true
+        node.enqueueOperation {n in
+            do {
+                let value = try operation(n)
+                DispatchQueue.main.async {self.upgradeBusy = false;done(value)}
+            } catch {
+                DispatchQueue.main.async {self.upgradeBusy = false;self.upgradeNotice = String(describing:error)}
+            }
+        }
+    }
+    func saveInvitation() {
+        perform({try $0.exportUpgradeInvitation()}) {invitation in
+            do {
+                self.exportDocument = UpgradeDocument(data:try JSONEncoder().encode(invitation))
+                self.exportName = "AttestNode-upgrade-invitation.json";self.exportedRequest = nil;self.showingExport = true
+            } catch {self.upgradeNotice = String(describing:error)}
+        }
+    }
+    func importUpgrade(_ url:URL) {
+        guard !upgradeBusy else {return}
+        let access = url.startAccessingSecurityScopedResource();defer {if access {url.stopAccessingSecurityScopedResource()}}
+        do {
+            let size = try url.resourceValues(forKeys:[.fileSizeKey]).fileSize ?? 0
+            try need(size>0 && size<=65536,"Upgrade file must be at most 64 KiB")
+            let data = try Data(contentsOf:url);try need(data.count<=65536,"Upgrade file size")
+            if let request = try? JSONDecoder().decode(UpgradeRequest.self,from:data) {
+                perform({try $0.validateUpgrade(request)}) {team in
+                    self.approvalTeam = hex(team.prefix(8));self.approval = request
+                }
+            } else {
+                guard let invitation = try? JSONDecoder().decode(UpgradeInvitation.self,from:data) else {
+                    throw DemoError.invalid("This is not an AttestNode upgrade invitation or request.")
+                }
+                perform({try $0.prepareUpgrade(invitation)}) {request in
+                    do {
+                        self.exportDocument = UpgradeDocument(data:try JSONEncoder().encode(request))
+                        self.exportedRequest = request;self.exportName = "AttestNode-upgrade-request.json";self.showingExport = true
+                    } catch {self.upgradeNotice = String(describing:error)}
+                }
+            }
+        } catch {upgradeNotice = error.localizedDescription}
+    }
+    func exportFinished(_ result:Result<URL,Error>) {
+        defer {exportDocument = nil;exportedRequest = nil}
+        switch result {
+        case .failure(let error):upgradeNotice = String(describing:error)
+        case .success:
+            if let request = exportedRequest {
+                perform({try $0.trackUpgrade(request)}) {_ in
+                    self.upgradeNotice = "Import this request in your original app. Compare the new-key fingerprint, then approve the handoff. New key: \(hex(keccak(request.newPoint).prefix(8)))"
+                }
+            } else {upgradeNotice = "Invitation saved. Build and sign your iPhone copy with your own Apple Developer team and the bundle identifier in that file."}
+        }
+    }
+    func approveHandoff(_ request:UpgradeRequest) {
+        approval = nil
+        // Revalidates immediately before signing; displaying a confirmation is
+        // never itself authorization for an expired or replaced request.
+        perform({try $0.approveUpgrade(request)}) {_ in
+            self.participantClaimed = false
+            self.upgradeNotice = "Account handoff confirmed. Continue in your independently signed copy to claim the builder NFT."
+        }
+    }
     private func emit(_ event:String,_ fields:[String:Any]) {
         // Reports contain public receipts and bounded diagnostic metadata, never
         // enrollment blobs, private keys, or peer exchange payloads.
@@ -90,24 +187,40 @@ final class ParticipantModel: ObservableObject {
             case "connecting":self.title = "Connecting to the testnet…"
             case "attesting":self.title = "Verifying this app…";self.detail = "Apple attestation checks this app before the network admits it."
             case "getting key":self.title = "Joining the network…";self.detail = "Waiting for a verified peer to share the testnet key."
-            case "participating":self.title = "You’re connected";self.detail = "The shared testnet key is verified. This iPhone participates while the app is open."
+            case "participating":self.connected = true;self.title = "You’re connected";self.detail = "The shared testnet key is verified. This iPhone participates while the app is open."
             case "badge preparing":self.badge = "Preparing your personal NFT account…"
             case "badge claiming":self.badge = "Claiming your participant NFT…"
             case "badge retrying":self.badge = "NFT claim pending; retrying automatically."
             case "badge claimed":
-                self.badge = "Participant NFT #\(fields["badgeToken"] ?? "") confirmed"
+                self.participantClaimed = (fields["badgeLevel"] as? NSNumber)?.intValue != 2
+                self.badge = "\((fields["badgeLevel"] as? NSNumber)?.intValue == 2 ? "Independent-builder" : "Participant") NFT #\(fields["badgeToken"] ?? "") confirmed"
                 if let contract = fields["badgeContract"] as? String,let token = fields["badgeToken"],(fields["chainId"] as? NSNumber)?.uint64Value == 84532 {
                     self.receiptURL = URL(string:"https://sepolia.basescan.org/token/\(contract)?a=\(token)")
                 }
-            case "retrying":self.title = "Waiting to reconnect…";self.detail = "Retrying in \(fields["retryAfterSeconds"] ?? 0) seconds."
-            case "stopped":self.title = "Couldn’t join the network";self.detail = "No further automatic attempts will run. Share the diagnostic report so we can investigate.";if self.receiptURL == nil {self.badge = "NFT claim has not completed."}
+            case "account handed off":self.participantClaimed = false;self.badge = "Account handed off. Continue in your independently signed copy."
+            case "upgrade awaiting approval":self.badge = "Waiting for your original app to approve the handoff…"
+            case "builder claiming":self.badge = "Claiming your independent-builder NFT…"
+            case "retrying":self.connected = false;self.title = "Waiting to reconnect…";self.detail = "Retrying in \(fields["retryAfterSeconds"] ?? 0) seconds."
+            case "stopped":self.connected = false;self.title = "Couldn’t join the network";self.detail = "No further automatic attempts will run. Share the diagnostic report so we can investigate.";if self.receiptURL == nil {self.badge = "NFT claim has not completed."}
             default:break
             }
         }
     }
 }
 
+struct UpgradeDocument:FileDocument {
+    static var readableContentTypes:[UTType] {[.json]}
+    var data:Data
+    init(data:Data) {self.data = data}
+    init(configuration:ReadConfiguration) throws {
+        guard let data = configuration.file.regularFileContents,data.count<=65536 else {throw DemoError.invalid("Upgrade file size")}
+        self.data = data
+    }
+    func fileWrapper(configuration:WriteConfiguration) throws -> FileWrapper {FileWrapper(regularFileWithContents:data)}
+}
+
 struct NodeView: View {
+    @State private var showingImport = false
     @StateObject private var participant = ParticipantModel()
     var body: some View {
         NavigationStack {
@@ -120,6 +233,16 @@ struct NodeView: View {
                     Text(participant.badge).font(.headline)
                     if let url = participant.receiptURL {Link("View NFT receipt",destination:url)}
                     Text("Research testnet · Base Sepolia\nNo payment or wallet setup required.").font(.footnote).foregroundStyle(.secondary)
+                    if participant.connected {
+                        DisclosureGroup("Developer upgrade") {
+                            VStack(alignment:.leading,spacing:12) {
+                                Text("Save an invitation, then import it in your admitted iPhone copy signed by your own Apple Developer team. Bring its request back here to approve the account handoff.").font(.footnote)
+                                Button("Save invitation") {participant.saveInvitation()}.disabled(!participant.participantClaimed)
+                                Button("Import upgrade file") {showingImport = true}
+                                if participant.upgradeBusy {ProgressView("Checking upgrade…")}
+                            }.disabled(participant.upgradeBusy)
+                        }
+                    }
                     DisclosureGroup("Technical details") {
                         Text(participant.lines.joined(separator:"\n")).font(.caption.monospaced()).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading)
                     }
@@ -133,5 +256,20 @@ struct NodeView: View {
                 }
             }
         }.onAppear {participant.start()}
+        .fileImporter(isPresented:$showingImport,allowedContentTypes:[.json]) {result in
+            switch result {case .success(let url):participant.importUpgrade(url);case .failure(let error):participant.upgradeNotice = String(describing:error)}
+        }
+        .fileExporter(isPresented:$participant.showingExport,document:participant.exportDocument,contentType:.json,defaultFilename:participant.exportName,onCompletion:participant.exportFinished)
+        .alert("Developer upgrade",isPresented:Binding(get:{participant.upgradeNotice != nil},set:{if !$0 {participant.upgradeNotice = nil}})) {
+            Button("OK",role:.cancel) {participant.upgradeNotice = nil}
+        } message: {Text(participant.upgradeNotice ?? "")}
+        .alert("Transfer NFT account control?",isPresented:Binding(get:{participant.approval != nil},set:{if !$0 {participant.approval = nil}}),presenting:participant.approval) {request in
+            // Use the presented snapshot: SwiftUI may clear the binding before
+            // invoking the action. Node still revalidates before any signature.
+            Button("Approve handoff",role:.destructive) {participant.approveHandoff(request)}
+            Button("Cancel",role:.cancel) {participant.approval = nil}
+        } message: {request in
+                Text("Account: \(request.invitation.account)\nNew key: \(hex(keccak(request.newPoint).prefix(8)))\nTeam proof: \(participant.approvalTeam)\n\nCompare this fingerprint with your own signed copy. That copy will control the account; this copy will no longer control it.")
+        }
     }
 }

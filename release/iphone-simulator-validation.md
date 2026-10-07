@@ -252,8 +252,10 @@ the second-team signing/upgrade journey remain open acceptance work.
 The configured archive was exported with `destination=upload`, automatic signing
 and `manageAppVersionAndBuildNumber=true`. Xcode returned exit 0 and reported
 “Upload succeeded.” Structured metadata in `ContentDelivery.log` confirms version
-0.1.0/build 3. The last observed Apple state was “Uploaded package is processing”;
-this is not evidence processing has finished or that a tester can install it.
+0.1.0/build 3. A subsequent user-provided App Store Connect screenshot shows
+version 0.1.0, build 3, with status **Missing Compliance**. The existing build
+needs its encryption declaration completed through Manage before distribution
+can proceed; no friend-accessible installation has been verified.
 The upload process itself completed and should not be restarted merely because
 the beta distribution state is not yet queried.
 
@@ -261,3 +263,34 @@ Sanitized evidence is in [`iphone-testflight-upload.json`](iphone-testflight-upl
 No authentication logs or credentials are committed. iPhone admission remains
 disabled. The planned beta text and acceptance sequence are in
 [`testflight-review.md`](testflight-review.md).
+
+The source now declares `ITSAppUsesNonExemptEncryption=false` for future builds,
+reflecting encryption supplied by Apple system frameworks. This does not change
+the already-uploaded build 3. After the pending developer-upgrade UI changes,
+the five simulator UI tests and nineteen injected native callback checks passed
+again in `mini-mesh:~/agent-drop/iphone-friend-flow/build/ios-upgrade-ui-validation`.
+Those tests cover the existing participant and diagnostic flows; they do not
+prove the new file handoff UI or a second-team hardware upgrade.
+
+
+## Developer upgrade UI checks
+
+The revised run `build/ios-upgrade-consent-validation-v2` passed **8 UI tests**
+and **19 injected native callback checks**. All tested Swift source hashes match
+the local checkout. Evidence, screenshots, command, and copied diagnostic report
+are in [`ios-upgrade-simulator-20261007`](../data/ios-upgrade-simulator-20261007).
+
+The new tests open/cancel the real system file picker, reject malformed and
+oversized files, exercise explicit consent/cancellation, and confirm a simulator
+scenario cannot invoke a real signer. The original seven-test run failed because
+the confirmation popover hid its Cancel button; visual inspection confirmed that
+failure. The replacement alert displays both Cancel and Approve handoff. Its
+action uses the presented request snapshot, while `Node.approveUpgrade` rechecks
+eligibility before signing. The passing consent screenshot was visually reviewed.
+
+![Simulator consent alert; no hardware handoff](../data/ios-upgrade-simulator-20261007/attachments/435D49E6-5BE0-4197-A336-B4DB95486016.png)
+
+These checks do **not** validate successful invitation/request file export, the
+positive cryptographic handoff, second-team signing, installed TestFlight code,
+or physical-device admission. Uploaded build 3 predates these controls. The
+next device archive must be a new build and must exclude simulator selectors.

@@ -64,8 +64,9 @@ ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
     info = plistlib.loads((DEST / 'Info.plist').read_bytes())
     info.update(CFBundleIdentifier='$(PRODUCT_BUNDLE_IDENTIFIER)', CFBundleExecutable='$(EXECUTABLE_NAME)',
                 CFBundleName='$(PRODUCT_NAME)', CFBundleVersion='$(CURRENT_PROJECT_VERSION)',
-                CFBundleShortVersionString='$(MARKETING_VERSION)', MinimumOSVersion='$(IPHONEOS_DEPLOYMENT_TARGET)')
-    # No encryption declaration is guessed: the uploader must provide the assessed value.
+                CFBundleShortVersionString='$(MARKETING_VERSION)', MinimumOSVersion='$(IPHONEOS_DEPLOYMENT_TARGET)', ITSAppUsesNonExemptEncryption=False)
+    # Encryption is supplied by Apple CryptoKit/system TLS; no bundled encryption
+    # implementation. Reassess this declaration if that changes in a fork.
     (DEST / 'Node-Release.plist').write_bytes(plistlib.dumps(info))
     (DEST / 'Node.entitlements').write_bytes(plistlib.dumps({
         'com.apple.developer.devicecheck.appattest-environment': 'production',

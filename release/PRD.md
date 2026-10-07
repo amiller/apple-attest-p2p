@@ -142,3 +142,41 @@ compatible iPhones. Simulator validation is recorded in
 `iphone-simulator-validation.md`; it does not establish physical-device admission. Its device/account and
 review requirements must be documented and tested separately; the first friend
 acceptance run is macOS.
+
+
+## iPhone user journey under validation
+
+The iOS 27 app opens directly into “Connecting to the testnet”, then “Verifying
+this app”, “Joining the network”, and “You’re connected”. After the participant
+NFT confirms, “View NFT receipt” opens its explorer page. Participation requires
+the app to remain in the foreground. An unsupported device or terminal Apple
+error stops automatic attempts and offers “Share diagnostic report”; the report
+includes app/OS versions, the failing Apple operation, and bounded error-domain
+and code chains. A network interruption shows the retry delay. Simulator
+scenarios always carry a visible warning and never prove an NFT claim.
+
+After connection, “Developer upgrade” offers “Save invitation” (available after
+Level 1) and “Import upgrade file”. The source implementation supports this
+sequence; uploaded TestFlight build 3 does not contain these controls:
+
+1. Save the invitation in the original app, preserving that app and its keys.
+2. Build and sign the same admitted source with an independent Developer team
+   and the exact account-specific bundle identifier in the invitation.
+3. Distribute the independent iPhone copy through TestFlight and have its actual
+   installed code admitted under the iPhone policy. A development-signed build
+   is a different validation category and is not admitted by the present policy.
+4. Join from that copy, import the invitation, and save the generated request.
+5. Return the request to the original app using Import upgrade file. It checks
+   the network, account, key signature, receipt, team, and expiry before asking
+   for consent. Oversized and malformed files receive an error without consent.
+6. Compare the new-key fingerprint with the independently signed copy. The
+   original app displays the account, fingerprint, and team-proof prefix plus
+   the consequence: control moves to the new copy. Cancel changes nothing.
+7. Approve handoff explicitly. The app checks eligibility again before signing.
+8. Continue in the new copy, which waits for approval and claims the builder NFT.
+   Verify its original Level 1 parent and independent team on chain.
+
+The positive physical-iPhone and second-team runs remain required. Simulator
+consent/file-picker checks do not establish signing, TestFlight measurement,
+network admission, or handoff success. Neither the builder badge nor App Attest
+establishes a unique person or permanently unique physical device.
