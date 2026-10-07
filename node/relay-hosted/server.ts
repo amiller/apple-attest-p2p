@@ -9,6 +9,9 @@ type State={transactions:Record<string,Entry>,boxes:Record<string,Mail[]>};
 const abi=JSON.parse(await Deno.readTextFile(new URL('./abi.json',import.meta.url)));
 const badgeAbi=JSON.parse(await Deno.readTextFile(new URL('./badge-abi.json',import.meta.url)));
 const deployment=JSON.parse(await Deno.readTextFile(new URL('./network.json',import.meta.url)));
+let nftDeployment:typeof deployment|undefined;
+try {nftDeployment=JSON.parse(await Deno.readTextFile(new URL('./network-nft.json',import.meta.url)));}
+catch(e) {if(!(e instanceof Deno.errors.NotFound))throw e;}
 const response=(body:unknown,status=200)=>Response.json(body,{status});
 function need(ok:unknown,message:string):asserts ok {if(!ok)throw new Error(message);}
 function binary(value:unknown):Uint8Array {need(typeof value==='string' && value.length<64000,'invalid base64');return Uint8Array.from(atob(value),c=>c.charCodeAt(0));}
@@ -38,6 +41,7 @@ export class Relay {
         need([31337,84532].includes(deployment.chainId),'test networks only');
         need(await this.client.getChainId()===deployment.chainId,'wrong chain');
         need(this.account.address.toLowerCase()===deployment.admin.toLowerCase(),'wrong sponsor');
+        if(nftDeployment)need(nftDeployment.chainId===deployment.chainId && nftDeployment.admin.toLowerCase()===deployment.admin.toLowerCase(),'NFT route must share chain and sponsor');
         await Deno.mkdir(this.directory,{recursive:true});
         try {this.state=JSON.parse(await Deno.readTextFile(this.directory+'/state.json'));}
         catch(e) {if(!(e instanceof Deno.errors.NotFound))throw e;}
@@ -98,21 +102,26 @@ export class Relay {
         });
         this.txQueue=operation.catch(()=>{});return operation;
     }
-    private networkRequest(r:any) {
+    private networkRequest(r:any,network:typeof deployment) {
         need(r&&[0,2,3].includes(r.action),'unsupported action');
-        need(hex(r.category,32).toLowerCase()===deployment.macCategory.toLowerCase(),'unknown category');
+        need(hex(r.category,32).toLowerCase()===network.macCategory.toLowerCase(),'unknown category');
         need(r.owner?.toLowerCase()===this.account.address.toLowerCase()&&r.memberSigner?.toLowerCase()===this.account.address.toLowerCase(),'wrong owner');
         return {action:r.action,category:hex(r.category,32),owner:this.account.address,memberSigner:this.account.address,sessionKeyHash:hex(r.sessionKeyHash,32),nonce:integer(r.nonce),validUntil:integer(r.validUntil),scope:hex(r.scope,32),keyX:integer(r.keyX),keyY:integer(r.keyY),envelopeDigest:hex(r.envelopeDigest,32)};
     }
     async handle(request:Request) {
         await this.initialized;
-        const path=new URL(request.url).pathname.replace(/\/$/,'');
-        if(request.method==='GET' && ['/info','/_warmup'].includes(path))return response({owner:this.account.address,chainId:deployment.chainId,registry:deployment.DemoV1,protocolVersion:2});
+        const incoming=new URL(request.url).pathname.replace(/\/$/,'');
+        const nft=incoming==='/nft'||incoming.startsWith('/nft/');
+        if(nft&&!nftDeployment)return response({error:'NFT route not configured'},404);
+        const selected=nft?nftDeployment:deployment;
+        const path=nft?incoming.slice(4):incoming;
+        const mailboxPrefix=nft?'nft:':'';
+        if(request.method==='GET' && ['/info','/_warmup'].includes(path))return response({owner:this.account.address,chainId:selected.chainId,registry:selected.DemoV1,protocolVersion:2});
         if(request.method==='GET' && path==='/status')return response({pending:Object.values(this.state.transactions).filter(e=>!e.complete).map(e=>({hash:e.hash,gas:parseTransaction(e.raw).gas?.toString()})),completed:Object.values(this.state.transactions).filter(e=>e.complete).length});
         if(request.method==='GET' && path.startsWith('/recv/')) {
             const name=path.slice(6);need(/^[a-zA-Z0-9_-]{1,80}$/.test(name),'invalid mailbox');
-            const queue=(this.state.boxes[name]||[]).filter(x=>Date.now()-x.at<120000);
-            const entry=queue.shift();if(queue.length)this.state.boxes[name]=queue;else delete this.state.boxes[name];
+            const queue=(this.state.boxes[mailboxPrefix+name]||[]).filter(x=>Date.now()-x.at<120000);
+            const entry=queue.shift();if(queue.length)this.state.boxes[mailboxPrefix+name]=queue;else delete this.state.boxes[mailboxPrefix+name];
             if(entry)await this.save();return response({message:entry?.message||null});
         }
         need(request.method==='POST','unknown route');
@@ -124,50 +133,50 @@ export class Relay {
             need(size<=8192 && typeof body.from==='string' && /^[a-zA-Z0-9_-]{1,80}$/.test(body.from),'invalid message');
             need(['HELLO','PARCEL','PROOF','ERROR'].includes(body.type),'unsupported message type');
             for(const [key,items] of Object.entries(this.state.boxes)){const live=items.filter(x=>Date.now()-x.at<120000);if(live.length)this.state.boxes[key]=live;else delete this.state.boxes[key];}
-            need(this.state.boxes[name]||Object.keys(this.state.boxes).length<500,'mailbox limit');
-            const queue=this.state.boxes[name]||[];need(queue.length<32,'mailbox full');queue.push({at:Date.now(),message:body});this.state.boxes[name]=queue;await this.save();return response({queued:queue.length});
+            need(this.state.boxes[mailboxPrefix+name]||Object.keys(this.state.boxes).length<500,'mailbox limit');
+            const queue=this.state.boxes[mailboxPrefix+name]||[];need(queue.length<32,'mailbox full');queue.push({at:Date.now(),message:body});this.state.boxes[mailboxPrefix+name]=queue;await this.save();return response({queued:queue.length});
         }
         if(path==='/enroll') {
-            need(hex(body.category,32).toLowerCase()===deployment.macCategory.toLowerCase(),'unknown category');
+            need(hex(body.category,32).toLowerCase()===selected.macCategory.toLowerCase(),'unknown category');
             const evidence=decode(binary(body.attestation));
             const data=encodeFunctionData({abi:abi.adapter,functionName:'enroll',args:[toHex(evidence.attStmt.x5c[0]),toHex(evidence.authData),hex(body.clientData,32)]});
-            return response({tx:await this.transact(deployment.macAdapter,data)});
+            return response({tx:await this.transact(selected.macAdapter,data)});
         }
         if(path==='/register-build') {
-            need(deployment.ResearchBadges&&deployment.PersonalBadgeAccountFactory,'NFT builder registration not enabled');
+            need(selected.ResearchBadges&&selected.PersonalBadgeAccountFactory,'NFT builder registration not enabled');
             const cd=hex(body.cd),page0=hex(body.page0,16384),ent=hex(body.ent);
             need(cd.length<=32770&&ent.length<=8194,'build registration size');
             const data=encodeFunctionData({abi:badgeAbi.registry,functionName:'registerBuild',args:[cd,page0,ent]});
-            return response({tx:await this.transact(deployment.macCDRegistry,data)});
+            return response({tx:await this.transact(selected.macCDRegistry,data)});
         }
         if(['/personal-account','/badge-claim','/account-handoff'].includes(path)) {
-            need(deployment.ResearchBadges&&deployment.PersonalBadgeAccountFactory,'NFT claims not enabled');
+            need(selected.ResearchBadges&&selected.PersonalBadgeAccountFactory,'NFT claims not enabled');
             if(path==='/personal-account') {
-                const data=encodeFunctionData({abi:badgeAbi.factory,functionName:'createForMember',args:[integer(body.x),integer(body.y),hex(body.keyId,32),this.networkRequest(body.request)]});
-                return response({tx:await this.transact(deployment.PersonalBadgeAccountFactory,data)});
+                const data=encodeFunctionData({abi:badgeAbi.factory,functionName:'createForMember',args:[integer(body.x),integer(body.y),hex(body.keyId,32),this.networkRequest(body.request,selected)]});
+                return response({tx:await this.transact(selected.PersonalBadgeAccountFactory,data)});
             }
             if(path==='/account-handoff') {
                 const target=hex(body.account,20);
-                need(await this.client.readContract({address:deployment.PersonalBadgeAccountFactory,abi:badgeAbi.factory,functionName:'isAccount',args:[target]}),'unknown personal account');
-                need((await this.client.readContract({address:deployment.ResearchBadges,abi:badgeAbi.badges,functionName:'participantOf',args:[target]}) as bigint)>0n,'account has no participant NFT');
+                need(await this.client.readContract({address:selected.PersonalBadgeAccountFactory,abi:badgeAbi.factory,functionName:'isAccount',args:[target]}),'unknown personal account');
+                need((await this.client.readContract({address:selected.ResearchBadges,abi:badgeAbi.badges,functionName:'participantOf',args:[target]}) as bigint)>0n,'account has no participant NFT');
                 const data=encodeFunctionData({abi:badgeAbi.account,functionName:'handoff',args:[integer(body.x),integer(body.y),integer(body.deadline),hex(body.oldSignature,64),hex(body.newSignature,64)]});
                 return response({tx:await this.transact(target,data)});
             }
             const c=body.claim;need(c&&[1,2].includes(c.level),'invalid badge level');
             const claim={recipient:hex(c.recipient,20),keyId:hex(c.keyId,32),level:c.level,parent:integer(c.parent),deadline:integer(c.deadline)};
-            const data=encodeFunctionData({abi:badgeAbi.badges,functionName:'claim',args:[claim,this.networkRequest(body.request),hex(body.recipientSignature)]});
-            return response({tx:await this.transact(deployment.ResearchBadges,data)});
+            const data=encodeFunctionData({abi:badgeAbi.badges,functionName:'claim',args:[claim,this.networkRequest(body.request,selected),hex(body.recipientSignature)]});
+            return response({tx:await this.transact(selected.ResearchBadges,data)});
         }
         if(path==='/execute') {
-            const value=this.networkRequest(body.request);
-            const context=await this.client.readContract({address:deployment.DemoV1,abi:abi.demo,functionName:'contextHash',args:[value]}) as Hex;
+            const value=this.networkRequest(body.request,selected);
+            const context=await this.client.readContract({address:selected.DemoV1,abi:abi.demo,functionName:'contextHash',args:[value]}) as Hex;
             need(context.toLowerCase()===hex(body.context,32).toLowerCase(),'request context mismatch');
             const assertion=decode(binary(body.assertion));const [x,y]=signature(assertion.signature);
             const kid=binary(body.keyId);need(kid.length===32,'invalid key ID');
             const proof=encodeAbiParameters([{type:'bytes32'},{type:'bytes'},{type:'uint256'},{type:'uint256'}],[toHex(kid),toHex(assertion.authenticatorData),x,y]);
             const memberSignature=await this.account.signMessage({message:{raw:context}});
             const data=encodeFunctionData({abi:abi.demo,functionName:'execute',args:[value,proof,memberSignature,hex(body.groupSignature)]});
-            return response({tx:await this.transact(deployment.DemoV1,data)});
+            return response({tx:await this.transact(selected.DemoV1,data)});
         }
         return response({error:'unknown route'},404);
     }

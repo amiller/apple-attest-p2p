@@ -5,6 +5,16 @@ It never receives the shared signing key. `network.json` pins the test deploymen
 `abi.json` and `badge-abi.json` are generated from the checked-in contracts.
 Include both ABI files in deployment packages. Dependencies are locked.
 
+The existing root routes keep `network.json` and the original shared-key release.
+Optional `network-nft.json` adds `/nft/*` routes for the NFT network. Both must use
+the same chain and sponsor, and share a single transaction queue and durable
+journal. NFT mailboxes have their own namespace. Include `network-nft.json` when
+deploying this dual-network configuration; never replace the legacy deployment
+file with the NFT deployment. The app pins the `/nft` endpoint in its executable.
+
+Compatibility check:
+`deno test --config node/relay-hosted/deno.json --frozen --node-modules-dir=none --allow-read --allow-write --allow-net node/relay-hosted/server_test.ts`
+
 The deployed instance uses the existing pod's isolated Deno container runtime,
 with persistent `ctx.dataDir` and `ctx.env.PRIVATE_KEY` / `RPC_URL`. The sponsor is
 a dedicated Base Sepolia account. Its key is not in source, tarballs or build logs.
