@@ -88,14 +88,23 @@ final class Node {
         guard let r=try http(cfg.relay.appendingPathComponent(path),body) as? [String:Any] else {throw DemoError.invalid("relay response")}
         return r
     }
+    private var nativeAttestation = NativeAttestation()
+    private func native<T>(_ stage:String,operation:(@escaping (T?,Error?)->Void)->Void) throws -> T {
+        log("apple operation started",["stage":stage])
+        do {
+            let result:T = try nativeAttestation.call(stage:stage,operation:operation)
+            log("apple operation succeeded",["stage":stage]);return result
+        } catch {
+            log("apple operation failed",["stage":stage,"errorChain":NativeAttestation.errorChain(error)])
+            throw error
+        }
+    }
     func appAttest(enroll: Bool,_ context: Data) throws -> Data {
-        let wait=DispatchSemaphore(value:0);var result:Data?;var failure:Error?
-        let done:(Data?,Error?)->Void={d,e in result=d;failure=e;wait.signal()}
-        // Enrollment: the adapter takes clientData and hashes it. Assertion: the adapter takes the 32-byte context as clientDataHash.
-        if enroll {service.attestKey(keyID,clientDataHash:Data(SHA256.hash(data:context)),completionHandler:done)} else {service.generateAssertion(keyID,clientDataHash:context,completionHandler:done)}
-        try need(wait.wait(timeout:.now()+90) == .success,"App Attest timeout")
-        if let failure {throw failure}
-        guard let result else {throw DemoError.invalid("missing App Attest response")};return result
+        // Enrollment hashes clientData; assertions already receive its digest.
+        try native(enroll ? "attestKey" : "generateAssertion") {done in
+            if enroll {service.attestKey(keyID,clientDataHash:Data(SHA256.hash(data:context)),completionHandler:done)}
+            else {service.generateAssertion(keyID,clientDataHash:context,completionHandler:done)}
+        }
     }
     func start() throws {
         try lockIdentity()
@@ -123,10 +132,7 @@ final class Node {
             }
         }
         if state==nil {
-        let wait=DispatchSemaphore(value:0);var failure:Error?
-        service.generateKey{k,e in self.keyID=k ?? "";failure=e;wait.signal()}
-        try need(wait.wait(timeout:.now()+90) == .success,"key generation timeout")
-        if let failure {throw failure}
+            keyID = try native("generateKey") {done in service.generateKey(completionHandler:done)}
             state=EnrollmentState(keyID:keyID);try saveState(state!)
         } else {keyID=state!.keyID}
         guard let kid=Data(base64Encoded:keyID),kid.count==32 else {throw DemoError.invalid("key id")}
@@ -137,7 +143,13 @@ final class Node {
             attestation=value;context=try unhex(originalContext)
             log("resuming enrollment",[:])
         } else {
-            context=try keccak(Data("TEE_INTEROP_ENROLL_V1".utf8)+addressWord(cfg.registry)+addressWord(owner)+sessionPublic)
+            if let savedContext=state!.clientData {context=try unhex(savedContext)}
+            else {
+                context=try keccak(Data("TEE_INTEROP_ENROLL_V1".utf8)+addressWord(cfg.registry)+addressWord(owner)+sessionPublic)
+                // Persist before calling Apple so a service-unavailable retry
+                // uses the same key and clientDataHash, even after a restart.
+                state!.clientData=hex(context);try saveState(state!)
+            }
             attestation=try appAttest(enroll:true,context)
             state!.attestation=attestation.base64EncodedString();state!.clientData=hex(context)
             try saveState(state!)

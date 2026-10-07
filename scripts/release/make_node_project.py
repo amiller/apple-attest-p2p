@@ -9,7 +9,7 @@ DEST = ROOT / 'node/ios'
 
 
 def main():
-    sources = ['../shared/Protocol.swift', '../shared/PersonalAccount.swift', '../shared/BadgeClaim.swift', '../shared/Upgrade.swift', '../shared/Chain.swift', '../shared/Node.swift', 'NodeApp.swift']
+    sources = ['../shared/Protocol.swift', '../shared/PersonalAccount.swift', '../shared/BadgeClaim.swift', '../shared/Upgrade.swift', '../shared/Chain.swift', '../shared/NativeAttestation.swift', '../shared/Node.swift', '../mac/NetworkConfig.swift', 'NodeApp.swift']
     objects = []
     def oid(n):
         return f'{n:024X}'
@@ -22,10 +22,10 @@ def main():
     for n, b, source in zip(source_refs, build_refs, sources):
         add(n, f'isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = {json.dumps(source)}; sourceTree = "<group>";')
         add(b, f'isa = PBXBuildFile; fileRef = {oid(n)};')
-    add(1, f'isa = PBXProject; buildConfigurationList = {oid(2)}; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; knownRegions = (en,Base); mainGroup = {oid(3)}; productRefGroup = {oid(4)}; projectDirPath = ""; projectRoot = ""; targets = ({oid(5)});')
+    add(1, f'isa = PBXProject; buildConfigurationList = {oid(2)}; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; knownRegions = (en,Base); mainGroup = {oid(3)}; productRefGroup = {oid(4)}; projectDirPath = ""; projectRoot = ""; targets = ({oid(5)},{oid(42)});')
     add(2, f'isa = XCConfigurationList; buildConfigurations = {refs([10,11])}; defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;')
-    add(3, f'isa = PBXGroup; children = {refs(source_refs + [30,4])}; sourceTree = "<group>";')
-    add(4, f'isa = PBXGroup; children = ({oid(7)}); name = Products; sourceTree = "<group>";')
+    add(3, f'isa = PBXGroup; children = {refs(source_refs + [30,40,4])}; sourceTree = "<group>";')
+    add(4, f'isa = PBXGroup; children = ({oid(7)},{oid(47)}); name = Products; sourceTree = "<group>";')
     add(5, f'isa = PBXNativeTarget; buildConfigurationList = {oid(8)}; buildPhases = {refs([9,20,21])}; buildRules = (); dependencies = (); name = AttestNode; productName = AttestNode; productReference = {oid(7)}; productType = "com.apple.product-type.application";')
     add(7, 'isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AttestNode.app; sourceTree = BUILT_PRODUCTS_DIR;')
     add(8, f'isa = XCConfigurationList; buildConfigurations = {refs([12,13])}; defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;')
@@ -34,6 +34,18 @@ def main():
     add(21, f'isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = ({oid(31)}); runOnlyForDeploymentPostprocessing = 0;')
     add(30, 'isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>";')
     add(31, f'isa = PBXBuildFile; fileRef = {oid(30)};')
+    add(40, 'isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeUITests.swift; sourceTree = "<group>";')
+    add(41, f'isa = PBXBuildFile; fileRef = {oid(40)};')
+    add(42, f'isa = PBXNativeTarget; buildConfigurationList = {oid(43)}; buildPhases = {refs([46,50,51])}; buildRules = (); dependencies = ({oid(48)}); name = AttestNodeUITests; productName = AttestNodeUITests; productReference = {oid(47)}; productType = "com.apple.product-type.bundle.ui-testing";')
+    add(43, f'isa = XCConfigurationList; buildConfigurations = {refs([44,45])}; defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;')
+    for n, name in [(44,'Debug'), (45,'Release')]:
+        add(n, f'isa = XCBuildConfiguration; buildSettings = {{ GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = dev.dsmack.attestnode.uitests; PRODUCT_NAME = "$(TARGET_NAME)"; TEST_TARGET_NAME = AttestNode; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1; CODE_SIGN_STYLE = Automatic; }}; name = {name};')
+    add(46, f'isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = ({oid(41)}); runOnlyForDeploymentPostprocessing = 0;')
+    add(47, 'isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = AttestNodeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR;')
+    add(48, f'isa = PBXTargetDependency; target = {oid(5)}; targetProxy = {oid(49)};')
+    add(49, f'isa = PBXContainerItemProxy; containerPortal = {oid(1)}; proxyType = 1; remoteGlobalIDString = {oid(5)}; remoteInfo = AttestNode;')
+    add(50, 'isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;')
+    add(51, 'isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;')
     for n, name in [(10,'Debug'), (11,'Release')]:
         add(n, f'isa = XCBuildConfiguration; buildSettings = {{ SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 27.0; }}; name = {name};')
     settings = '''ALWAYS_SEARCH_USER_PATHS = NO; CODE_SIGN_STYLE = Automatic;
@@ -52,7 +64,7 @@ ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
     info = plistlib.loads((DEST / 'Info.plist').read_bytes())
     info.update(CFBundleIdentifier='$(PRODUCT_BUNDLE_IDENTIFIER)', CFBundleExecutable='$(EXECUTABLE_NAME)',
                 CFBundleName='$(PRODUCT_NAME)', CFBundleVersion='$(CURRENT_PROJECT_VERSION)',
-                CFBundleShortVersionString='$(MARKETING_VERSION)', MinimumOSVersion='27.0')
+                CFBundleShortVersionString='$(MARKETING_VERSION)', MinimumOSVersion='$(IPHONEOS_DEPLOYMENT_TARGET)')
     # No encryption declaration is guessed: the uploader must provide the assessed value.
     (DEST / 'Node-Release.plist').write_bytes(plistlib.dumps(info))
     (DEST / 'Node.entitlements').write_bytes(plistlib.dumps({
@@ -64,6 +76,7 @@ ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
     (schemes / 'AttestNode.xcscheme').write_text(f'''<?xml version="1.0" encoding="UTF-8"?>
 <Scheme LastUpgradeVersion="2700" version="1.3">
 <BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES"><BuildActionEntries><BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES">{buildable}</BuildActionEntry></BuildActionEntries></BuildAction>
+<TestAction buildConfiguration="Debug" shouldUseLaunchSchemeArgsEnv="YES"><Testables><TestableReference skipped="NO"><BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="{oid(42)}" BuildableName="AttestNodeUITests.xctest" BlueprintName="AttestNodeUITests" ReferencedContainer="container:AttestNode.xcodeproj"/></TestableReference></Testables></TestAction>
 <LaunchAction buildConfiguration="Debug" launchStyle="0" useCustomWorkingDirectory="NO"><BuildableProductRunnable runnableDebuggingMode="0">{buildable}</BuildableProductRunnable></LaunchAction>
 <ArchiveAction buildConfiguration="Release" revealArchiveInOrganizer="YES"/>
 </Scheme>

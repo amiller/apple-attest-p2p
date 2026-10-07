@@ -137,6 +137,8 @@ Existing evidence: [Mac release checklist](README.md),
 4. Implement the simple status/receipt screens and the fork-and-sign guide.
 5. Run both journeys, capture screenshots/transcript, and package the friend handoff.
 
-iOS/TestFlight remains a subsequent distribution track. Its device/account and
+iOS 27/TestFlight is an active distribution track, requested for friends with
+compatible iPhones. Simulator validation is recorded in
+`iphone-simulator-validation.md`; it does not establish physical-device admission. Its device/account and
 review requirements must be documented and tested separately; the first friend
 acceptance run is macOS.

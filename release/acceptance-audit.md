@@ -1,9 +1,12 @@
 # Acceptance audit — 7 October 2026
 
-The goal is **not complete**. The remaining dependency is an actual participant
-with a second Apple Silicon Mac on macOS 27, Gatekeeper enabled, and a paid Apple
-Developer team different from the publisher. The user has been asked to arrange
-this. Credentials stay on that participant's machine. A second-team signing
+The goal is **not complete**. Gabe has now reported successful Mac participation
+after enabling Full Security and backing up the pending enrollment state. The
+user supplied a token-2 explorer link; independent receipt verification and a
+friend restart capture remain pending. This is a reported success, not proof of
+a frictionless first install or of Gatekeeper settings. The second-team builder
+journey remains unverified. Friends with iOS 27 devices are available, and their
+TestFlight flow is now active release work. Credentials stay on that participant's machine. A second-team signing
 identity cannot be substituted with another certificate from the publisher team.
 
 | Requirement | Authoritative evidence | Result |
@@ -21,7 +24,8 @@ identity cannot be substituted with another certificate from the publisher team.
 The signing Mac still reports `assessments disabled`. Its notarization, signature,
 and stapled ticket checks do not prove a clean Gatekeeper first-open experience.
 The published source remains private; Level 2 requires repository access.
-iOS/TestFlight remains the separate subsequent track defined in the PRD.
+iOS/TestFlight is active; see `iphone-simulator-validation.md` for simulator and
+injected-callback evidence and the remaining hardware/distribution gates.
 
 ## Read-only receipt check
 

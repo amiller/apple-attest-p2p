@@ -224,10 +224,13 @@ xcodebuild -project node/ios/AttestNode.xcodeproj -scheme AttestNode \
   CODE_SIGNING_ALLOWED=NO archive
 ```
 
-The checked-in project is generated deterministically. It targets iOS 27, contains
-the shared peer code and existing SwiftUI shell, and currently still requires
-configuration input. It is not ready for external testing until the user flow and
-network endpoint are implemented. Version/build defaults are placeholders; query
+The checked-in project is generated deterministically and targets iOS 27. The
+SwiftUI participant now starts automatically using the pinned network, preserves
+its participant identity, and provides a shareable diagnostic report. Simulator
+UI scenarios and injected native callback tests are recorded in
+[iPhone simulator validation](iphone-simulator-validation.md). This is not yet
+an installable TestFlight release: the iPhone build still needs signing,
+compatible on-chain admission, and a physical iOS 27 acceptance run. Version/build defaults are placeholders; query
 live App Store Connect state before assigning the upload build number.
 
 Measured evidence is in `reproducibility-20261006.json`,
