@@ -2,8 +2,9 @@
 
 The goal is **not complete**. Gabe has now reported successful Mac participation
 after enabling Full Security and backing up the pending enrollment state. The
-user supplied a token-2 explorer link; independent receipt verification and a
-friend restart capture remain pending. This is a reported success, not proof of
+user supplied a token-2 explorer link; `friend-level1-receipt.json` now verifies
+its mint transaction, factory account and current ownership on Base Sepolia. A
+friend restart capture remains pending. This is a reported success, not proof of
 a frictionless first install or of Gatekeeper settings. The second-team builder
 journey remains unverified. Friends with iOS 27 devices are available, and their
 TestFlight flow is now active release work. Credentials stay on that participant's machine. A second-team signing
@@ -12,8 +13,8 @@ identity cannot be substituted with another certificate from the publisher team.
 | Requirement | Authoritative evidence | Result |
 |---|---|---|
 | Friend can obtain the signed app | Unlisted handoff browser download matches RC2 ZIP SHA-256; HTML, archive and manifest verified | Download ready; clean second-Mac install unverified |
-| Join and automatically claim participant NFT | `data/nft-base-live-20261007/participant.jsonl`, real screenshot, successful Base Sepolia mint receipt | Verified on signing Mac, two processes |
-| Personal ownership and restart without duplication | On-chain owner differs from sponsor; packaged restart restores NFT 1; `nextId()` remains 2 | Verified for recorded participant; friend run pending |
+| Join and automatically claim participant NFT | `data/nft-base-live-20261007/participant.jsonl`, real screenshot, successful Base Sepolia mint receipt | Verified on signing Mac; friend reports success and NFT 2 receipt independently verified |
+| Personal ownership and restart without duplication | On-chain owner differs from sponsor; packaged restart restores NFT 1; `nextId()` remains 2 | Verified for original participant; friend NFT 2 ownership verified, friend restart pending |
 | Own developer-team upgrade and builder NFT | Contract policy/rejection tests, implemented UI/handoff, builder guide | Positive second-team journey unverified |
 | Real journey screenshots | Actual connected/claimed and restart captures retained | First-open, developer setup and builder-success captures still required from acceptance run |
 | Reproducible agent transcript | Exact commit, commands, events, receipt, ownership and restart recorded | Level 1 recorded; second signing identity and Level 2 transcript pending |

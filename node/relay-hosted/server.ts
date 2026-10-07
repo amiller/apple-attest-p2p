@@ -39,7 +39,9 @@ export class Relay {
     private client;
     private directory:string;
     private initialized:Promise<void>;
+    private readonly sponsorWritesPaused:boolean;
     constructor(context:Context) {
+        this.sponsorWritesPaused=context.env.SPONSOR_WRITES_PAUSED==='true';
         this.account=privateKeyToAccount(hex(context.env.PRIVATE_KEY,32));
         this.client=createPublicClient({transport:http(context.env.RPC_URL || 'https://sepolia.base.org',{timeout:30000,retryCount:1})});
         this.directory=context.dataDir;
@@ -103,6 +105,7 @@ export class Relay {
     }
     private transact(to:Address,data:Hex):Promise<Hex> {
         const operation=this.txQueue.then(async()=>{
+            need(!this.sponsorWritesPaused,'sponsor maintenance; retry shortly');
             const id=keccak256((to.toLowerCase()+data.slice(2)) as Hex);
             if(this.state.transactions[id])return await this.settle(this.state.transactions[id]);
             for(const entry of Object.values(this.state.transactions))if(!entry.complete)await this.settle(entry);
@@ -136,7 +139,7 @@ export class Relay {
         const path=(ios||nft)?incoming.slice(4):incoming;
         const mailboxPrefix=(ios||nft)?'nft:':'';
         if(request.method==='GET' && ['/info','/_warmup'].includes(path))return response({owner:this.account.address,chainId:selected.chainId,registry:selected.DemoV1,protocolVersion:2});
-        if(request.method==='GET' && path==='/status')return response({pending:Object.values(this.state.transactions).filter(e=>!e.complete).map(e=>({hash:e.hash,gas:parseTransaction(e.raw).gas?.toString()})),completed:Object.values(this.state.transactions).filter(e=>e.complete).length});
+        if(request.method==='GET' && path==='/status')return response({sponsorWritesPaused:this.sponsorWritesPaused,pending:Object.values(this.state.transactions).filter(e=>!e.complete).map(e=>({hash:e.hash,gas:parseTransaction(e.raw).gas?.toString()})),completed:Object.values(this.state.transactions).filter(e=>e.complete).length});
         if(request.method==='GET' && path.startsWith('/recv/')) {
             const name=path.slice(6);need(/^[a-zA-Z0-9_-]{1,80}$/.test(name),'invalid mailbox');
             const queue=(this.state.boxes[mailboxPrefix+name]||[]).filter(x=>Date.now()-x.at<120000);

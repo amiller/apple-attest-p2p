@@ -19,8 +19,9 @@ routes deliberately share the `nft:` mailbox namespace so iPhones can contact
 the existing Mac seed. They share the sponsor transaction queue and journal too.
 Enrollment/execution remain restricted to each route's configured category.
 An absent iOS file returns 404; inconsistent configured networks fail startup.
-No iOS configuration is shipped yet: the category, badge/account policy and
-installed TestFlight code admission must be prepared before deployment.
+The shipped iOS configuration references its deployed **disabled** category.
+Installed TestFlight code admission remains pending; route availability is not
+proof an iPhone can join.
 
 Compatibility check:
 `deno test --config node/relay-hosted/deno.json --frozen --node-modules-dir=none --allow-read --allow-write --allow-net node/relay-hosted/server_test.ts`
@@ -61,3 +62,10 @@ still delay or discard delivery. Peers verify chain/session/key bindings.
 
 The transaction journal has a hard 10,000-entry cap; plan maintenance before
 reaching it. Do not delete pending entries. RPC failures return retryable errors.
+
+
+For administrator nonce coordination, `SPONSOR_WRITES_PAUSED=true` blocks every
+new sponsor transaction inside the shared queue. `/status` reports this flag;
+mailboxes and read-only routes remain available. Drain/reconcile pending entries
+before external administrator transactions, then redeploy with the flag false.
+This is separate from the on-chain network pause and does not alter admission.

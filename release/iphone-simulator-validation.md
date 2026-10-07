@@ -7,10 +7,10 @@ No configuration editor or Listen/Connect buttons are presented. Participation
 is foreground-only. A bounded JSON-lines report can be shared or copied from the
 app, including OS/app versions, the failed Apple operation and nested error codes.
 
-**Not yet a TestFlight release.** The configured deployment currently admits the
-Mac release's executable and Mac attestation profile. An iPhone executable is
-not interchangeable with that baseline. Admission and signing must be completed
-without invalidating the running Mac network. The simulator success scenario
+**Not yet a TestFlight release.** A separate iPhone category is now deployed on
+Base Sepolia but disabled, with no admitted executable. The configured iPhone
+IPA is signed/exported locally. Upload, installed TestFlight measurement and
+iPhone activation remain pending; the working Mac policy is unchanged. The simulator success scenario
 uses injected events: it does not attest, obtain a key, or mint an NFT.
 
 Evidence: [`data/ios-simulator-20261007/reviewed`](../data/ios-simulator-20261007/reviewed),
@@ -158,8 +158,8 @@ The optional `/ios` route is implemented in source and tested with a loopback
 RPC stub. Five relay tests pass: cross-platform NFT mailbox exchange with
 separate enrollment categories and preserved legacy isolation/journal, absent
 iOS configuration, wrong registry, wrong sponsor, and reused Mac category.
-These are transport/configuration checks, not fresh iPhone attestations. No
-`network-ios.json` has been published and the deployed relay is unchanged.
+These are transport/configuration checks, not fresh iPhone attestations. The initial check was source-only. The later live deployment below publishes
+`network-ios.json` while leaving iPhone admission disabled.
 
 Apple's official [validation documentation](https://developer.apple.com/documentation/devicecheck/validating-apps-that-connect-to-your-server)
 was checked on 7 October: TestFlight uses validation category **2**, distinct
@@ -211,3 +211,36 @@ The current single-category badge/account contracts do not establish a
 cross-platform upgrade or permit a category-5 ad-hoc builder to substitute for
 a category-2 TestFlight build. That path still needs explicit implementation and
 acceptance evidence; the Mac builder journey remains independently pending.
+
+
+## Live preparation and configured IPA
+
+The tested preparation was executed on Base Sepolia. Addresses and five confirmed
+transactions are in
+[`prepare-ios-base-sepolia.json`](../contracts/network/prepare-ios-base-sepolia.json);
+the adjacent progress journal preserves the original Mac-policy snapshot. The
+iPhone category remains disabled and its code registry has no approved baseline.
+
+During deployment the relay's sponsor writes were temporarily paused through its
+environment flag, with its transaction journal confirmed idle and the sponsor's
+latest/pending nonces equal. After preparation the relay was redeployed with
+writes restored and the additive iPhone configuration. A startup probe briefly
+returned HTTP 500. A later check confirmed all routes healthy, maintenance off,
+and completed sponsored transactions advancing from 29 to 31. A resumed relay
+can legitimately show in-flight transactions; this is not an idle-maintenance
+condition. See [`ios-relay-live.json`](ios-relay-live.json).
+
+`node/ios/NetworkConfig.swift` now pins the iPhone category, badge/account contracts
+and `/ios` endpoint. The Mac network file is unchanged. The iPhone project and
+simulator build include this dedicated file. The five UI tests and nineteen
+callback checks passed again with this configuration; summaries and the copied
+report are in
+[`ios-configured-simulator-20261007`](../data/ios-configured-simulator-20261007).
+The signed configured IPA export succeeded and passed strict signature checks;
+its hashes and source configuration digest are recorded in
+[`iphone-configured-export.json`](iphone-configured-export.json). The earlier
+unconfigured IPA is superseded. Neither IPA has been uploaded.
+
+The public category is **not activated** merely because its addresses and relay
+route exist. Installed TestFlight measurement/admission, beta distribution and
+the second-team signing/upgrade journey remain open acceptance work.

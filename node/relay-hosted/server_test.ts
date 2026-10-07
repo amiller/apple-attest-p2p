@@ -55,7 +55,7 @@ Deno.test('iPhone and Mac share NFT mailboxes with separate admission; legacy st
     }
 });
 
-for(const mode of ['absent','wrong-registry','wrong-sponsor','reused-category']) {
+for(const mode of ['absent','wrong-registry','wrong-sponsor','reused-category','maintenance']) {
     Deno.test('iPhone route configuration guard: '+mode,async()=>{
         const key='0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
         const directory=await Deno.makeTempDir();
@@ -71,13 +71,24 @@ for(const mode of ['absent','wrong-registry','wrong-sponsor','reused-category'])
             base.chainId=31337;base.admin=privateKeyToAccount(key).address;
             await Deno.writeTextFile(directory+'/network.json',JSON.stringify(base));
             await Deno.writeTextFile(directory+'/network-nft.json',JSON.stringify(base));
-            const ios={...base,iosCategory:'0x'+'66'.repeat(32),iosAdapter:'0x'+'77'.repeat(20),iosCDRegistry:'0x'+'88'.repeat(20)};
+            const ios={...base,ResearchBadges:'0x'+'aa'.repeat(20),PersonalBadgeAccountFactory:'0x'+'bb'.repeat(20),iosCategory:'0x'+'66'.repeat(32),iosAdapter:'0x'+'77'.repeat(20),iosCDRegistry:'0x'+'88'.repeat(20)};
             if(mode==='wrong-registry')ios.DemoV1='0x'+'99'.repeat(20);
             if(mode==='wrong-sponsor')ios.admin='0x'+'99'.repeat(20);
             if(mode==='reused-category')ios.iosCategory=base.macCategory;
             if(mode!=='absent')await Deno.writeTextFile(directory+'/network-ios.json',JSON.stringify(ios));
             const {default:handler}=await import('file://'+directory+'/server.ts');
-            const result=await handler(new Request('http://relay/ios/info'),{env:{PRIVATE_KEY:key,RPC_URL:'http://127.0.0.1:'+rpc.addr.port},dataDir:directory+'/data'});
+            const context={env:{PRIVATE_KEY:key,RPC_URL:'http://127.0.0.1:'+rpc.addr.port,SPONSOR_WRITES_PAUSED:mode==='maintenance'?'true':'false'},dataDir:directory+'/data'};
+            if(mode==='maintenance') {
+                const status=await (await handler(new Request('http://relay/status'),context)).json();
+                if(status.sponsorWritesPaused!==true)throw new Error('Maintenance not visible');
+                const registration=new Request('http://relay/ios/register-build',{method:'POST',body:JSON.stringify({cd:'0x01',page0:'0x'+'00'.repeat(16384),ent:'0x01'})});
+                const result=await handler(registration,context);const body=await result.json();
+                if(body.error!=='sponsor maintenance; retry shortly')throw new Error('Write was not blocked: '+JSON.stringify(body));
+                const after=await (await handler(new Request('http://relay/status'),context)).json();
+                if(after.pending.length||after.completed)throw new Error('Maintenance created a journal entry');
+                return;
+            }
+            const result=await handler(new Request('http://relay/ios/info'),context);
             const body=await result.json();
             const expected=mode==='absent'?'iPhone route not configured':mode==='reused-category'?'iPhone route requires a separate admission policy':'iPhone route must share NFT chain, sponsor and registry';
             if(result.status!==(mode==='absent'?404:503)||body.error!==expected)
