@@ -167,3 +167,47 @@ from the retained ad-hoc fixture's **5** and the Mac release's Developer ID
 category **6**. Production iPhone admission must check the TestFlight profile
 explicitly; a passing ad-hoc fixture does not establish the installed beta's
 category, executable hash, or permitted independent-team signing path.
+
+## Inactive iPhone category preparation
+
+`scripts/release/prepare_ios_category.py` adds a separate TestFlight (category 2,
+iOS key ACL, production AAGUID) adapter and empty code registry to the existing
+V2 network. It creates the matching badge/account contracts but **does not set a
+code baseline or enable admission**. Its transaction journal is written before
+submission; an existing output or journal prevents a blind repeat deployment.
+It checks the network administrator and publisher, and compares the original Mac
+category, code baseline and global pause state before/after preparation.
+
+An isolated Anvil run on chain 31337 passed. The original Mac category stayed
+active and its recorded Developer ID build remained admitted; the new iPhone
+category stayed disabled, rejected execution, and had an empty code baseline.
+The badge contract pointed to the intended iPhone adapter/network. Repeating the
+same command was refused without changing the administrator's nonce. The
+manifests, transaction journal and check results are retained in
+[`ios-category-local-20261007`](../data/ios-category-local-20261007).
+
+Commands used, with the standard public Anvil fixture key supplied in
+`PRIVATE_KEY` (never use that key on a real deployment):
+
+```sh
+anvil --host 127.0.0.1 --port 19473 --silent
+python3 scripts/release/deploy_network.py \
+  --rpc http://127.0.0.1:19473 \
+  --build contracts/fixtures/cd-args-developer-id.json \
+  --out build/ios-category-test/mac.json \
+  --publisher-team DC9JH5DRMY --activate
+python3 scripts/release/prepare_ios_category.py \
+  --rpc http://127.0.0.1:19473 \
+  --existing build/ios-category-test/mac.json \
+  --out build/ios-category-test/ios.json
+```
+
+No Base Sepolia contracts or deployed service changed in this test. Before live
+use, serialize administrator transactions with the running relay's sponsor
+queue; reading the pending nonce alone does not prevent concurrent sends.
+The addresses then belong in a dedicated iPhone configuration, followed by a
+new build/export and installed TestFlight measurement before activation.
+The current single-category badge/account contracts do not establish a
+cross-platform upgrade or permit a category-5 ad-hoc builder to substitute for
+a category-2 TestFlight build. That path still needs explicit implementation and
+acceptance evidence; the Mac builder journey remains independently pending.
