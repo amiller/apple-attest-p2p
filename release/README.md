@@ -1,15 +1,16 @@
 # Mac release and TestFlight checklist
 
-Status: the Mac `v0.1.0-rc.1` candidate is Developer ID signed and notarized.
+Status: the Mac `v0.1.0-rc.2` candidate is Developer ID signed and notarized.
 The exact GUI completed a zero-argument launch, real App Attest enrollment and
 verified shared-key receipt on the separate Base Sepolia release network.
 The mini runs a persistent user-session seed; the HTTPS relay runs on the pod.
 
-Download the prerelease ZIP, extract **AttestNode.app**, and open it on an Apple
+Download the prerelease ZIP, extract **Node.app**, and open it on an Apple
 Silicon Mac running macOS 27. It starts automatically. The window displays its
 state and verified receipt. Closing the window keeps the peer available in the
 menu bar; **Quit peer** stops it. No wallet, gas purchase, or configuration is needed.
-The repository/release is private: GitHub downloads require repository access.
+The [repository and release downloads](https://github.com/amiller/apple-attest-p2p/releases/tag/v0.1.0-rc.2) are public; no GitHub account is needed.
+See [source-history.md](source-history.md) for the privacy cleanup and commit mapping.
 
 The clean-Mac Gatekeeper and visual interaction test is still required. The build
 mini has Gatekeeper disabled; a valid notarization ticket is not evidence of that
@@ -52,8 +53,8 @@ Signing and stapling preserve that payload (`gui-payload-verification-20261006.j
 ## Fork and build with GitHub resources
 
 1. Fork [amiller/apple-attest-p2p](https://github.com/amiller/apple-attest-p2p)
-   with access to the private repository. `main` contains the tested release
-   infrastructure; ongoing application work uses `release/mac-distribution`.
+   and check out `v0.1.0-rc.2` when reproducing the admitted Mac app. `main`
+   contains later iPhone work and is not the current Mac admission baseline.
 2. Enable Actions. `mac-build.yml` builds on `xcode-27` without Apple credentials.
    GitHub's image moves; the checked-in toolchain lock must still match. Change
    that lock only as a reviewed build input, then obtain fresh measurements.
@@ -252,7 +253,7 @@ also matches independently (run 37549470397) and passed live zero-setup receipt
 on Base Sepolia. External TestFlight distribution remains pending.
 
 Release work is isolated on `release/mac-distribution`; the active visualization
-checkout is untouched. The private repository is `amiller/apple-attest-p2p`. The confirmed faucet
+checkout is untouched. The public sample repository is `amiller/apple-attest-p2p`. The confirmed faucet
 is the shared testnet signing key with a verified exchange receipt; its
 all-holders-restart recovery uses explicit administrator action. `DemoV2` implements
 explicit administrator-controlled key epochs, with five passing policy tests.

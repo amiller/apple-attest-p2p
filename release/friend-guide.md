@@ -2,13 +2,15 @@
 
 **Mac prerelease:** Apple Silicon and macOS 27 are required. The app is available
 without a GitHub account from the [unlisted handoff page](https://pod.dstack.soc1024.com/artifact-reports-2026b/attestnode-friend-handoff--D8rHDc-ANNzKZ_C7Vcy5bQ/).
-Anyone holding that link can download it. Source access remains private.
+Anyone holding that link can download it. The
+[GitHub source and releases](https://github.com/amiller/apple-attest-p2p) are also
+public, with no account required to download the app.
 This candidate passed a real Mac network/claim run; a clean second-Mac first-open
 test and the independent-developer upgrade are still awaiting acceptance.
 
 1. Open the handoff page and choose **Download the Mac app**. The
    [GitHub release](https://github.com/amiller/apple-attest-p2p/releases/tag/v0.1.0-rc.2)
-   is also available to repository collaborators.
+   is also available directly to anyone.
 2. Extract it and open **Node.app**. Complete macOS's normal first-open confirmation
    if it appears. You do not need Xcode, a developer account, a wallet, or gas.
 3. Wait for **You’re connected** and **Participant NFT confirmed**. The observed

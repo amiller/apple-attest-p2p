@@ -18,8 +18,9 @@ value.”
 The first experience requires no developer account, terminal commands, wallet
 setup, gas purchase, or network configuration. Download access and the normal
 macOS first-open confirmation are separate from application setup. The [friend handoff](friend-guide.md) provides an unlisted app download without
-GitHub access and states the supported Mac/OS requirements. Source access remains
-private for Level 2.
+GitHub access and states the supported Mac/OS requirements. The
+[repository and release](https://github.com/amiller/apple-attest-p2p) are now public
+for direct downloads and Level 2 forks.
 
 ## Level 1: participant
 

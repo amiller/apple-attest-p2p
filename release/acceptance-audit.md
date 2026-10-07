@@ -24,7 +24,10 @@ identity cannot be substituted with another certificate from the publisher team.
 
 The signing Mac still reports `assessments disabled`. Its notarization, signature,
 and stapled ticket checks do not prove a clean Gatekeeper first-open experience.
-The published source remains private; Level 2 requires repository access.
+The cleaned source and RC2 download are now public. Anonymous access to the
+builder guide, PRD and exact app ZIP was verified; see
+`../data/publication-20261007/anonymous-checks.json`. The original provisioning
+history remains in a separate private repository.
 iOS/TestFlight is active; see `iphone-simulator-validation.md` for simulator and
 injected-callback evidence and the remaining hardware/distribution gates.
 
