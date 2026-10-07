@@ -35,8 +35,8 @@ vector executable, never in the participant or Keychain test.
 The Mac participant now attempts Level 1 automatically after joining, verifies
 confirmed ownership, and retries claim errors without disconnecting the peer.
 It consults `participantOf(account)` on restart to reuse the existing NFT. The
-release must pin both badge and factory addresses; the current shipped release
-has neither configured. Sponsored account creation requires an additional fresh
+release must pin both badge and factory addresses; RC2 pins both addresses and has passed a real Base Sepolia participant claim
+and packaged restart. Sponsored account creation requires an additional fresh
 network receipt bound to the proposed public key, factory, chain and member.
 
 The working branch now includes the [developer-upgrade UI](builder-guide.md),

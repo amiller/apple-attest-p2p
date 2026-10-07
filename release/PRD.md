@@ -81,6 +81,16 @@ policy and evidence source; this PRD does not pretend App Attest supplies it.
 
 Source: [Apple: Secure your apps with App Attest](https://developer.apple.com/videos/play/wwdc2026/201/).
 
+## Administrative trust
+
+The operator can pause admission, change admitted code/category policy, and
+advance the shared-key epoch after complete loss of in-memory key holders. The
+relay sponsors testnet gas and transports messages; relay and RPC availability
+are required. The app trusts RPC responses rather than verifying a light-client
+proof. Apple attestation roots and the pinned Apple build toolchain are trust
+assumptions. The sponsor has no personal-account recovery function; historical
+NFTs are not a promise that an app remains admitted forever.
+
 ## Failure states
 
 - Network or faucet unavailable: explain the delay and retry automatically;
@@ -108,13 +118,14 @@ Source: [Apple: Secure your apps with App Attest](https://developer.apple.com/vi
   transaction links, retries, and both signing identities. Include failures.
 - [ ] Reproduction instructions let another agent check the same claims without
   Apple passwords, private keys, or undocumented operator knowledge.
-- [ ] Documentation explicitly names the claim-limit scope, ownership/recovery
+- [x] Documentation explicitly names the claim-limit scope, ownership/recovery
   behavior, administrative trust, hardware prerequisites, and remaining limits.
 
 The goal stays open while screenshots or either NFT journey are unverified.
 Existing evidence: [Mac release checklist](README.md),
 [current shared-key user flow](user-flow.md), and
-[published release manifest](v0.1.0-rc.1.json).
+[published release manifest](v0.1.0-rc.2.json), and
+[current acceptance audit](acceptance-audit.md).
 
 ## Implementation order
 
