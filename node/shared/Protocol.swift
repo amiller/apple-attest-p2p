@@ -75,3 +75,16 @@ func http(_ url: URL,_ body: Any?=nil) throws -> Any {
     try need(status==200,"HTTP \(status) \(url.path): \(String(decoding:out,as:UTF8.self))")
     return try JSONSerialization.jsonObject(with:out)
 }
+
+struct BadgeClaim {
+    let recipient:String; let keyId:Data; let level:UInt64; let parent:UInt64; let deadline:UInt64
+    func words() throws -> Data {
+        try need(keyId.count==32 && (level==1 || level==2),"badge claim fields")
+        return try addressWord(recipient)+keyId+word(level)+word(parent)+word(deadline)
+    }
+    func digest(chainId:UInt64,badges:String) throws -> Data {
+        let domain=Data("ATTEST_RESEARCH_BADGE_V1".utf8)
+        return try keccak(word(8*32)+word(chainId)+addressWord(badges)+words()+word(UInt64(domain.count))+domain+Data(repeating:0,count:(32-domain.count%32)%32))
+    }
+    var json:[String:Any] { ["recipient":recipient,"keyId":hex(keyId),"level":level,"parent":parent,"deadline":deadline] }
+}

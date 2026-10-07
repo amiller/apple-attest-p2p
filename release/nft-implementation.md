@@ -1,6 +1,7 @@
 # Two-level NFT implementation notes
 
-Status: local contract implementation and tests; not deployed or wired to the app.
+Status: contracts, Mac participant claim client, and relay routes implemented locally;
+not deployed or validated as a complete live NFT journey.
 The signed v0.1.0-rc.1 app still implements only shared-key participation.
 
 `ResearchBadges` is separate from the legacy sponsor-owned NFT action. It uses a
@@ -29,7 +30,14 @@ entry afterward. CryptoKit-generated consent and handoff signatures also passed
 Solidity P-256 verification. Tests use publicly known fixture keys only in the
 vector executable, never in the participant or Keychain test.
 
-App integration and the user-facing handoff remain pending. The handoff will
+The Mac participant now attempts Level 1 automatically after joining, verifies
+confirmed ownership, and retries claim errors without disconnecting the peer.
+It consults `participantOf(account)` on restart to reuse the existing NFT. The
+release must pin both badge and factory addresses; the current shipped release
+has neither configured. Sponsored account creation requires an additional fresh
+network receipt bound to the proposed public key, factory, chain and member.
+
+The user-facing handoff and Level 2 client remain pending. The handoff will
 exchange public keys and narrowly bound signatures, never the private key.
 Retain the original app/key until the handoff confirms. There is no sponsor reset
 or recovery backdoor: losing the controlling key before handoff loses control of

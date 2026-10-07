@@ -50,6 +50,7 @@ contract ResearchBadgesTest is Test {
     function test_SponsorCannotReceiveOrRedirectParticipantNFT() public {
         (ResearchBadges.Claim memory c,DemoV1.Request memory r,bytes memory sig)=prepare(1,0,PUBLISHER);
         vm.prank(address(123));uint256 id=badge.claim(c,r,sig);assertEq(badge.ownerOf(id),recipient);
+        assertEq(badge.participantOf(recipient),id);
         c.recipient=address(123);vm.expectRevert("recipient consent");badge.claim(c,r,sig);
     }
     function test_ReplayCannotMintTwice() public {
@@ -61,7 +62,7 @@ contract ResearchBadgesTest is Test {
         (ResearchBadges.Claim memory c,DemoV1.Request memory r,bytes memory sig)=prepare(2,parent,FRIEND);
         uint256 id=badge.claim(c,r,sig);assertEq(badge.ownerOf(id),recipient);
         (,bytes32 team,uint8 level,uint256 linked)=badge.badges(id);
-        assertEq(team,FRIEND);assertEq(level,2);assertEq(linked,parent);
+        assertEq(team,FRIEND);assertEq(level,2);assertEq(linked,parent);assertEq(badge.builderOf(parent),id);
         vm.expectRevert("independent team");badge.claim(c,r,sig);
     }
     function test_PublisherOrUnknownTeamCannotEarnBuilder() public {
@@ -137,6 +138,21 @@ contract ResearchBadgesTest is Test {
         uint256 builder=badge.claim(c,r,abi.encodePacked(a,b));
         assertEq(badge.ownerOf(parent),address(account));assertEq(badge.ownerOf(builder),address(account));
         assertTrue(badge.upgraded(parent));
+    }
+    function test_SponsoredAccountCreationRequiresBoundAdmission() public {
+        PersonalBadgeAccountFactory factory=new PersonalBadgeAccountFactory(address(badge));
+        (,DemoV1.Request memory r,)=prepare(1,0,PUBLISHER);
+        uint256 x=0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296;
+        uint256 y=0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5;
+        vm.expectRevert("creation binding");factory.createForMember(x,y,KID,r);
+        r.envelopeDigest=factory.creationDigest(x,y,KID);
+        vm.expectRevert("creation evidence");factory.createForMember(x,y,KID,r);
+        vm.mockCall(address(adapter),abi.encodeWithSignature("assertionEvidence(bytes32)",KID),abi.encode(network.contextHash(r),CD,RP,uint64(block.timestamp),uint32(2)));
+        PersonalBadgeAccount account=factory.createForMember(x,y,KID,r);
+        assertEq(address(account),factory.accountAddress(x,y));assertTrue(factory.isAccount(address(account)));
+        assertEq(address(factory.createForMember(x,y,KID,r)),address(account));
+        vm.mockCall(address(network),abi.encodeCall(network.isActive,(keccak256(abi.encode(category,KID)))),abi.encode(false));
+        vm.expectRevert("inactive member");factory.createForMember(x,y,KID,r);
     }
     function test_NFTCannotTransfer() public {
         uint256 id=participant();vm.prank(recipient);vm.expectRevert("non-transferable");badge.transferFrom(recipient,address(123),id);

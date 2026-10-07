@@ -12,6 +12,7 @@ let variant="honest"
 
 struct Config {
     let rpc: URL; let registry: String; let chainId: UInt64; let category: Data; let relay: URL; let name: String
+    let badges: String?; let accountFactory: String?
     let peer: String; let helloDelay: Double; let protocolVersion: Int; let persistentIdentity: Bool
     init(_ d: [String:Any]) throws {
         guard let rpc=d["rpc"] as? String,let registry=d["registry"] as? String,let chainId=d["chainId"] as? Int,let category=d["category"] as? String,
@@ -21,13 +22,18 @@ struct Config {
         protocolVersion=d["protocolVersion"] as? Int ?? 1
         try need(protocolVersion==1 || protocolVersion==2,"unsupported protocol version")
         persistentIdentity=d["persistentIdentity"] as? Bool ?? false
+        badges=d["badges"] as? String;accountFactory=d["accountFactory"] as? String
+        try need((badges == nil)==(accountFactory == nil),"incomplete badge configuration")
+        if let badges,let accountFactory {_=try addressWord(badges);_=try addressWord(accountFactory)}
         #if GUI
         // A host-controlled developer config must never redirect the trusted RPC
         // or admission policy of a measured release build.
         if let fixed=ReleaseNetwork.settings {
             try need(rpc==fixed["rpc"] as? String && registry.lowercased()==(fixed["registry"] as? String)?.lowercased()
                 && chainId==fixed["chainId"] as? Int && category.lowercased()==(fixed["category"] as? String)?.lowercased()
-                && relay==fixed["relay"] as? String && protocolVersion==fixed["protocolVersion"] as? Int,"release network override rejected")
+                && relay==fixed["relay"] as? String && protocolVersion==fixed["protocolVersion"] as? Int
+                && badges?.lowercased()==(fixed["badges"] as? String)?.lowercased()
+                && accountFactory?.lowercased()==(fixed["accountFactory"] as? String)?.lowercased(),"release network override rejected")
         }
         #endif
     }
@@ -41,6 +47,7 @@ final class Node {
     let session=P256.KeyAgreement.PrivateKey()
     var sessionPublic: Data {session.publicKey.x963Representation}
     var keyID=""; var owner=""; var me=Data(); var held=[Data:P256.Signing.PrivateKey](); var heldEpoch=[Data:UInt64](); var nonces=[String:Data]()
+    var badgeParticipation=false;var badgeComplete=false;var nextBadgeAttempt=Date.distantPast
     private var identityLock: Int32 = -1
     deinit {if identityLock >= 0 {close(identityLock)}}
     func lockIdentity() throws {
@@ -131,6 +138,9 @@ final class Node {
     }
     /// action: 0 join, 2 bootstrap, 3 receipt. The relay is gas sponsor and Request.owner.
     func execute(_ action: UInt64,scope: Data=zero32,group: P256.Signing.PrivateKey?=nil,envelope: Data=zero32) throws -> String {
+        try executeDetailed(action,scope:scope,group:group,envelope:envelope).0
+    }
+    func executeDetailed(_ action: UInt64,scope: Data=zero32,group: P256.Signing.PrivateKey?=nil,envelope: Data=zero32) throws -> (String,Request) {
         let nonce=try smallWord(chain.call("nonces(address)",addressWord(owner)))
         let point=group?.publicKey.x963Representation ?? Data(repeating:0,count:65)
         let request=Request(action:action,category:cfg.category,owner:owner,session:keccak(sessionPublic),nonce:nonce,deadline:try chain.requestDeadline(),
@@ -141,7 +151,7 @@ final class Node {
         let signature=try group.map{hex(try $0.signature(for:RawDigest(data:context)).rawRepresentation)} ?? "0x"
         guard let tx=try relay("execute",["request":request.json,"context":hex(context),"assertion":assertion.base64EncodedString(),
                                           "keyId":keyID,"groupSignature":signature])["tx"] as? String else {throw DemoError.invalid("relay tx")}
-        log("executed",["action":action,"scope":hex(scope),"keyEpoch":epoch,"tx":tx]);return tx
+        log("executed",["action":action,"scope":hex(scope),"keyEpoch":epoch,"tx":tx]);return (tx,request)
     }
     func join() throws -> String {try execute(0)}
     func bootstrap(_ scope: Data) throws {
@@ -233,6 +243,7 @@ final class Node {
                 try need(identity.enrolled && identity.expires>UInt64(Date().timeIntervalSince1970),"identity renewal required")
                 checkedAt=Date();log("network reachable",[:])
             }
+            attemptParticipantBadge()
             var message: [String:Any]
             do {message=try receive(timeout:15)}
             catch DemoError.invalid(let reason) where reason=="receive timeout" {continue}
@@ -293,7 +304,9 @@ final class Node {
         let epoch=try chain.keyEpoch(zero32,protocolVersion:cfg.protocolVersion)
         if heldEpoch[zero32] != epoch {held.removeValue(forKey:zero32);heldEpoch.removeValue(forKey:zero32)}
         if held[zero32] == nil {try connect(startIdentity:false)} else {_=try join()}
+        badgeParticipation=true
         log("participating",["member":hex(me),"keyEpoch":epoch])
+        attemptParticipantBadge()
         try serve()
     }
 

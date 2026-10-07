@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
+import {ResearchBadges} from "./ResearchBadges.sol";
+import {DemoV1} from "./DemoV1.sol";
 
 /// A narrow ERC-1271 account for research badges, not a general-purpose wallet.
 /// No owner/admin/sponsor recovery path; a handoff requires both old and new keys.
@@ -53,6 +55,7 @@ contract PersonalBadgeAccount {
 /// cannot be redirected by the sponsor or by front-running the deployment.
 contract PersonalBadgeAccountFactory {
     address public immutable badges;
+    mapping(address => bool) public isAccount;
     event AccountCreated(address indexed account,uint256 x,uint256 y);
     constructor(address badges_) {require(badges_.code.length != 0,"badges");badges=badges_;}
     function accountAddress(uint256 x,uint256 y) public view returns(address) {
@@ -60,10 +63,28 @@ contract PersonalBadgeAccountFactory {
         bytes32 initHash=keccak256(abi.encodePacked(type(PersonalBadgeAccount).creationCode,abi.encode(badges,x,y)));
         return address(uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff),address(this),salt,initHash)))));
     }
-    function create(uint256 x,uint256 y) external returns(PersonalBadgeAccount account) {
+    /// Sponsor-facing path: creation is bound to a fresh admitted key receipt.
+    /// The unrestricted create() remains safe for callers paying their own gas.
+    function creationDigest(uint256 x,uint256 y,bytes32 kid) public view returns(bytes32) {
+        return keccak256(abi.encode(keccak256("ATTEST_PERSONAL_CREATE_V1"),block.chainid,address(this),kid,x,y));
+    }
+    function createForMember(uint256 x,uint256 y,bytes32 kid,DemoV1.Request calldata request) external returns(PersonalBadgeAccount) {
+        ResearchBadges policy=ResearchBadges(badges);
+        require(request.action == DemoV1.Action.Receipt && request.category == policy.category()
+            && request.envelopeDigest == creationDigest(x,y,kid),"creation binding");
+        require(request.validUntil > block.timestamp,"creation expiry");
+        (bytes32 context,bytes32 cdhash,bytes32 rp,uint64 checkedAt,)=policy.adapter().assertionEvidence(kid);
+        require(context != 0 && context == policy.network().contextHash(request)
+            && checkedAt <= block.timestamp && block.timestamp < uint256(checkedAt)+60,"creation evidence");
+        require(rp != 0 && policy.adapter().cds().rpIdHash(cdhash) == rp,"admitted build");
+        require(policy.network().isActive(keccak256(abi.encode(policy.category(),kid))),"inactive member");
+        return create(x,y);
+    }
+    function create(uint256 x,uint256 y) public returns(PersonalBadgeAccount account) {
         address predicted=accountAddress(x,y);
         if(predicted.code.length != 0) return PersonalBadgeAccount(predicted);
         account=new PersonalBadgeAccount{salt:keccak256(abi.encode(x,y))}(badges,x,y);
+        isAccount[address(account)]=true;
         emit AccountCreated(address(account),x,y);
     }
 }

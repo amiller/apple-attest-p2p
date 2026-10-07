@@ -22,6 +22,8 @@ contract ResearchBadges is ERC721, ReentrancyGuard {
     mapping(bytes32 => bool) public participantClaimed;
     mapping(bytes32 => bool) public builderTeamClaimed;
     mapping(uint256 => bool) public upgraded;
+    mapping(address => uint256) public participantOf;
+    mapping(uint256 => uint256) public builderOf;
     uint256 public nextId = 1;
     event BadgeClaimed(uint256 indexed tokenId,address indexed recipient,uint8 level,bytes32 member,bytes32 team,uint256 parent);
 
@@ -64,6 +66,8 @@ contract ResearchBadges is ERC721, ReentrancyGuard {
         // Consent is checked above. No receiver callback or arbitrary external
         // code runs during mint, and no private key is held by the gas sponsor.
         _mint(c.recipient,tokenId);
+        if(c.level == 1 && participantOf[c.recipient] == 0) participantOf[c.recipient] = tokenId;
+        if(c.level == 2) builderOf[c.parent] = tokenId;
         emit BadgeClaimed(tokenId,c.recipient,c.level,member,team,c.parent);
     }
     function tokenURI(uint256 tokenId) public view override returns(string memory) {

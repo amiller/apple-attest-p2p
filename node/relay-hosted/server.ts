@@ -7,12 +7,13 @@ type Entry={raw:Hex,hash:Hex,complete:boolean,success?:boolean};
 type Mail={at:number,message:Record<string,unknown>};
 type State={transactions:Record<string,Entry>,boxes:Record<string,Mail[]>};
 const abi=JSON.parse(await Deno.readTextFile(new URL('./abi.json',import.meta.url)));
+const badgeAbi=JSON.parse(await Deno.readTextFile(new URL('./badge-abi.json',import.meta.url)));
 const deployment=JSON.parse(await Deno.readTextFile(new URL('./network.json',import.meta.url)));
 const response=(body:unknown,status=200)=>Response.json(body,{status});
 function need(ok:unknown,message:string):asserts ok {if(!ok)throw new Error(message);}
 function binary(value:unknown):Uint8Array {need(typeof value==='string' && value.length<64000,'invalid base64');return Uint8Array.from(atob(value),c=>c.charCodeAt(0));}
 function hex(value:unknown,size?:number):Hex {need(typeof value==='string' && /^0x(?:[0-9a-fA-F]{2})*$/.test(value) && (size===undefined || value.length===2+size*2),'invalid hex');return value as Hex;}
-function integer(value:unknown):bigint {need(typeof value==='string'||typeof value==='number','invalid number');const n=BigInt(value);need(n>=0n,'negative number');return n;}
+function integer(value:unknown):bigint {need(typeof value==='string'||(typeof value==='number'&&Number.isSafeInteger(value)),'invalid number');const n=BigInt(value);need(n>=0n,'negative number');return n;}
 function signature(der:Uint8Array):[bigint,bigint] {
     need(der.length>=8 && der[0]===0x30 && der[1]===der.length-2,'invalid assertion signature');
     let offset=2;
@@ -97,6 +98,12 @@ export class Relay {
         });
         this.txQueue=operation.catch(()=>{});return operation;
     }
+    private networkRequest(r:any) {
+        need(r&&[0,2,3].includes(r.action),'unsupported action');
+        need(hex(r.category,32).toLowerCase()===deployment.macCategory.toLowerCase(),'unknown category');
+        need(r.owner?.toLowerCase()===this.account.address.toLowerCase()&&r.memberSigner?.toLowerCase()===this.account.address.toLowerCase(),'wrong owner');
+        return {action:r.action,category:hex(r.category,32),owner:this.account.address,memberSigner:this.account.address,sessionKeyHash:hex(r.sessionKeyHash,32),nonce:integer(r.nonce),validUntil:integer(r.validUntil),scope:hex(r.scope,32),keyX:integer(r.keyX),keyY:integer(r.keyY),envelopeDigest:hex(r.envelopeDigest,32)};
+    }
     async handle(request:Request) {
         await this.initialized;
         const path=new URL(request.url).pathname.replace(/\/$/,'');
@@ -126,11 +133,26 @@ export class Relay {
             const data=encodeFunctionData({abi:abi.adapter,functionName:'enroll',args:[toHex(evidence.attStmt.x5c[0]),toHex(evidence.authData),hex(body.clientData,32)]});
             return response({tx:await this.transact(deployment.macAdapter,data)});
         }
+        if(['/personal-account','/badge-claim','/account-handoff'].includes(path)) {
+            need(deployment.ResearchBadges&&deployment.PersonalBadgeAccountFactory,'NFT claims not enabled');
+            if(path==='/personal-account') {
+                const data=encodeFunctionData({abi:badgeAbi.factory,functionName:'createForMember',args:[integer(body.x),integer(body.y),hex(body.keyId,32),this.networkRequest(body.request)]});
+                return response({tx:await this.transact(deployment.PersonalBadgeAccountFactory,data)});
+            }
+            if(path==='/account-handoff') {
+                const target=hex(body.account,20);
+                need(await this.client.readContract({address:deployment.PersonalBadgeAccountFactory,abi:badgeAbi.factory,functionName:'isAccount',args:[target]}),'unknown personal account');
+                need((await this.client.readContract({address:deployment.ResearchBadges,abi:badgeAbi.badges,functionName:'participantOf',args:[target]}) as bigint)>0n,'account has no participant NFT');
+                const data=encodeFunctionData({abi:badgeAbi.account,functionName:'handoff',args:[integer(body.x),integer(body.y),integer(body.deadline),hex(body.oldSignature,64),hex(body.newSignature,64)]});
+                return response({tx:await this.transact(target,data)});
+            }
+            const c=body.claim;need(c&&[1,2].includes(c.level),'invalid badge level');
+            const claim={recipient:hex(c.recipient,20),keyId:hex(c.keyId,32),level:c.level,parent:integer(c.parent),deadline:integer(c.deadline)};
+            const data=encodeFunctionData({abi:badgeAbi.badges,functionName:'claim',args:[claim,this.networkRequest(body.request),hex(body.recipientSignature)]});
+            return response({tx:await this.transact(deployment.ResearchBadges,data)});
+        }
         if(path==='/execute') {
-            const r=body.request;need(r&&[0,2,3].includes(r.action),'unsupported action');
-            need(hex(r.category,32).toLowerCase()===deployment.macCategory.toLowerCase(),'unknown category');
-            need(r.owner?.toLowerCase()===this.account.address.toLowerCase()&&r.memberSigner?.toLowerCase()===this.account.address.toLowerCase(),'wrong owner');
-            const value={action:r.action,category:hex(r.category,32),owner:this.account.address,memberSigner:this.account.address,sessionKeyHash:hex(r.sessionKeyHash,32),nonce:integer(r.nonce),validUntil:integer(r.validUntil),scope:hex(r.scope,32),keyX:integer(r.keyX),keyY:integer(r.keyY),envelopeDigest:hex(r.envelopeDigest,32)};
+            const value=this.networkRequest(body.request);
             const context=await this.client.readContract({address:deployment.DemoV1,abi:abi.demo,functionName:'contextHash',args:[value]}) as Hex;
             need(context.toLowerCase()===hex(body.context,32).toLowerCase(),'request context mismatch');
             const assertion=decode(binary(body.assertion));const [x,y]=signature(assertion.signature);

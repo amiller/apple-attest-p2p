@@ -7,6 +7,8 @@ final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let titleLabel=NSTextField(labelWithString:"Connecting to the testnet…")
     private let detailLabel=NSTextField(wrappingLabelWithString:"Starting automatically. You can close this window and keep participating from the menu bar.")
     private let receiptLabel=NSTextField(wrappingLabelWithString:"No verified key receipt yet")
+    private let badgeLabel=NSTextField(wrappingLabelWithString:"Participant NFT: waiting for a connection")
+    private let badgeReceiptButton=NSButton(title:"View NFT receipt",target:nil,action:nil)
     private let diagnostics=NSTextView()
     private var status=[String:Any]()
     private var eventLines=[String]()
@@ -15,19 +17,21 @@ final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
-        window=NSWindow(contentRect:NSRect(x:0,y:0,width:620,height:470),styleMask:[.titled,.closable,.miniaturizable,.resizable],backing:.buffered,defer:false)
+        window=NSWindow(contentRect:NSRect(x:0,y:0,width:740,height:620),styleMask:[.titled,.closable,.miniaturizable,.resizable],backing:.buffered,defer:false)
         window.title=ReleaseNetwork.name;window.delegate=self;window.isReleasedWhenClosed=false
         titleLabel.font = .systemFont(ofSize:25,weight:.semibold)
         detailLabel.textColor = .secondaryLabelColor
-        receiptLabel.isSelectable=true
+        receiptLabel.isSelectable=true;badgeLabel.isSelectable=true
+        badgeReceiptButton.target=self;badgeReceiptButton.action=#selector(openBadgeReceipt);badgeReceiptButton.isEnabled=false
+        if ReleaseNetwork.settings?["badges"] == nil {badgeLabel.stringValue="This preview connects to the network; NFT claims are not enabled."}
         diagnostics.isEditable=false;diagnostics.font = .monospacedSystemFont(ofSize:11,weight:.regular)
         let scroll=NSScrollView();scroll.documentView=diagnostics;scroll.hasVerticalScroller=true
         let caption=NSTextField(labelWithString:"Research testnet • no monetary value • shared key stays in memory")
         caption.font = .systemFont(ofSize:11);caption.textColor = .secondaryLabelColor
-        let stack=NSStackView(views:[titleLabel,detailLabel,receiptLabel,caption,scroll])
+        let stack=NSStackView(views:[titleLabel,detailLabel,receiptLabel,badgeLabel,badgeReceiptButton,caption,scroll])
         stack.orientation = .vertical;stack.alignment = .leading;stack.spacing=18;stack.translatesAutoresizingMaskIntoConstraints=false
         let content=window.contentView!;content.addSubview(stack)
-        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo:content.leadingAnchor,constant:24),stack.trailingAnchor.constraint(equalTo:content.trailingAnchor,constant:-24),stack.topAnchor.constraint(equalTo:content.topAnchor,constant:24),stack.bottomAnchor.constraint(equalTo:content.bottomAnchor,constant:-24),scroll.widthAnchor.constraint(equalTo:stack.widthAnchor),scroll.heightAnchor.constraint(greaterThanOrEqualToConstant:160),detailLabel.widthAnchor.constraint(equalTo:stack.widthAnchor),receiptLabel.widthAnchor.constraint(equalTo:stack.widthAnchor)])
+        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo:content.leadingAnchor,constant:24),stack.trailingAnchor.constraint(equalTo:content.trailingAnchor,constant:-24),stack.topAnchor.constraint(equalTo:content.topAnchor,constant:24),stack.bottomAnchor.constraint(equalTo:content.bottomAnchor,constant:-24),scroll.widthAnchor.constraint(equalTo:stack.widthAnchor),scroll.heightAnchor.constraint(greaterThanOrEqualToConstant:160),detailLabel.widthAnchor.constraint(equalTo:stack.widthAnchor),receiptLabel.widthAnchor.constraint(equalTo:stack.widthAnchor),badgeLabel.widthAnchor.constraint(equalTo:stack.widthAnchor)])
         let menu=NSMenu()
         menu.addItem(withTitle:"Show testnet status",action:#selector(showWindow),keyEquivalent:"").target=self
         menu.addItem(.separator())
@@ -39,6 +43,11 @@ final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
         DispatchQueue.global(qos:.utility).async {self.runParticipant()}
     }
     @objc private func showWindow() {window.makeKeyAndOrderFront(nil);NSApp.activate(ignoringOtherApps:true)}
+    @objc private func openBadgeReceipt() {
+        guard let contract=status["badgeContract"] as? String,let token=status["badgeToken"],
+              (status["chainId"] as? NSNumber)?.uint64Value==84532,let url=URL(string:"https://sepolia.basescan.org/token/\(contract)?a=\(token)") else {return}
+        NSWorkspace.shared.open(url)
+    }
     @objc private func quit() {NSApp.terminate(nil)}
     func applicationShouldTerminateAfterLastWindowClosed(_ sender:NSApplication)->Bool {false}
 
@@ -85,6 +94,10 @@ final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self.diagnostics.string=self.eventLines.joined(separator:"\n")
             self.status.merge(fields){_,new in new};self.status["lastEvent"]=event;self.status["updatedAt"]=entry["t"]
             switch event {
+            case "badge preparing":self.badgeLabel.stringValue="Preparing your personal NFT account…"
+            case "badge claiming":self.badgeLabel.stringValue="Claiming your participant NFT…"
+            case "badge retrying":self.badgeLabel.stringValue="NFT claim pending; retrying automatically. Your peer remains connected."
+            case "badge claimed":self.badgeReceiptButton.isEnabled=(fields["chainId"] as? NSNumber)?.uint64Value==84532;self.badgeLabel.stringValue="Participant NFT #\(fields["badgeToken"] ?? "") confirmed\nYour account: \(fields["personalAccount"] ?? "")"
             case "connecting":self.setState("connecting","Connecting to the testnet…","Checking the configured network and relay.")
             case "attesting":self.setState("attesting","Verifying this app…","Checking the signed app and this Mac’s attestation identity.")
             case "getting key":self.setState("getting-key","Getting the shared testnet key…","Waiting for an admitted peer and a verifiable receipt.")
