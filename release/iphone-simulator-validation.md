@@ -88,3 +88,65 @@ join, receipt verification, NFT mint, restart, and report sharing. Complete beta
 review/external group setup and verify the resulting friend-accessible link.
 The iPhone developer-upgrade file UI is not yet implemented. Do not claim the
 full Level 2 iPhone journey from the shared underlying code alone.
+
+## Signed export follow-through
+
+The iOS 27 archive was signed with the existing Xcode account and exported using
+`method=app-store-connect`, `destination=export`, automatic signing, and team
+`DC9JH5DRMY`. This saved a local IPA; it did not upload or submit beta review.
+The initial signing attempt failed with `errSecInternalComponent`. Unlocking the
+existing dedicated signing keychain using its already-authorized local mechanism
+resolved it. No credential was printed or copied into source control.
+
+[`iphone-app-store-export.json`](iphone-app-store-export.json) records version
+0.1.0/build 3, the IPA/executable hashes, strict signature verification, production
+App Attest and CDhash opt-in, `get-task-allow=false`, and zero provisioned device
+identifiers in the distribution profile. The executable does not contain the
+simulator fixture environment-variable selector. Build 3 is an export value,
+not proof it is available for upload; check current App Store Connect state.
+
+Eight existing contract tests using retained real iPhone evidence also passed:
+correct iOS enrollment/assertions and network admission, modified/tampered or
+unregistered code rejection, and rejection under the Mac key profile. The
+fixture was captured from an ad-hoc iPhone build (validation category 5), **not**
+this new build or a TestFlight-installed iOS 27 app. Results are retained in
+[`iphone-cryptographic-tests.txt`](../data/ios-simulator-20261007/iphone-cryptographic-tests.txt).
+
+Reproduction after a signed archive exists:
+
+```sh
+xcodebuild -project node/ios/AttestNode.xcodeproj -scheme AttestNode \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -archivePath build/AttestNode-iOS27-signed.xcarchive \
+  DEVELOPMENT_TEAM=YOUR_TEAM_ID -allowProvisioningUpdates archive
+```
+
+Export options used (local export only):
+
+```xml
+<plist version="1.0"><dict>
+<key>method</key><string>app-store-connect</string>
+<key>destination</key><string>export</string>
+<key>teamID</key><string>YOUR_TEAM_ID</string>
+<key>signingStyle</key><string>automatic</string>
+<key>manageAppVersionAndBuildNumber</key><false/>
+<key>uploadSymbols</key><true/>
+</dict></plist>
+```
+
+```sh
+xcodebuild -exportArchive \
+  -archivePath build/AttestNode-iOS27-signed.xcarchive \
+  -exportOptionsPlist build/TestFlightExportOptions.plist \
+  -exportPath build/app-store-export -allowProvisioningUpdates
+```
+
+The live deployment must not be repinned to the iPhone executable. Its
+`CDRegistry` admits one baseline, its adapter fixes the Mac ACL and signing
+category, and its `ResearchBadges` fixes that adapter/category. The network
+contract supports additional categories; an additive iOS route can share its
+zero-scope peer network, but the relay, badge policy and account-upgrade policy
+must explicitly support that route. In particular, a second team's differently
+signed build and an Apple-processed TestFlight build cannot be assumed to share
+a validation category. Preserve existing Mac membership/NFTs and test these
+bindings before enabling iPhone admission.

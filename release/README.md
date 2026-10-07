@@ -195,8 +195,10 @@ macOS availability, or an iOS 27 network run.
       choose a new monotonically increasing build number from live state.
 - [x] Generate the node's iOS Xcode project with the existing lab icon and create
       an unsigned device archive on Xcode 27. See the commands below.
-- [ ] Sign/export the device archive, finish beta description, review
-      contact/instructions and accurate encryption declaration.
+- [x] Sign/export a local App Store Connect IPA; sanitized signing evidence is
+      in `iphone-app-store-export.json` (not uploaded).
+- [ ] Finish beta description, review contact/instructions and accurate encryption
+      declaration; select the upload build number against live account state.
 - [ ] Add a macOS platform/version to the record if supported and desired; do not
       assume the iOS TestFlight build supplies a Mac build. Mac Store signing and
       sandbox requirements are a separate distribution configuration.
