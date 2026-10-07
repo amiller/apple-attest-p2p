@@ -10,7 +10,17 @@ Optional `network-nft.json` adds `/nft/*` routes for the NFT network. Both must 
 the same chain and sponsor, and share a single transaction queue and durable
 journal. NFT mailboxes have their own namespace. Include `network-nft.json` when
 deploying this dual-network configuration; never replace the legacy deployment
-file with the NFT deployment. The app pins the `/nft` endpoint in its executable.
+file with the NFT deployment. The Mac app pins the `/nft` endpoint in its executable.
+
+Optional `network-ios.json` enables `/ios/*`. It must contain `iosCategory`,
+`iosAdapter`, and `iosCDRegistry`, each distinct from the Mac admission policy,
+and share the NFT route's `chainId`, `admin`, and `DemoV1`. iPhone and Mac NFT
+routes deliberately share the `nft:` mailbox namespace so iPhones can contact
+the existing Mac seed. They share the sponsor transaction queue and journal too.
+Enrollment/execution remain restricted to each route's configured category.
+An absent iOS file returns 404; inconsistent configured networks fail startup.
+No iOS configuration is shipped yet: the category, badge/account policy and
+installed TestFlight code admission must be prepared before deployment.
 
 Compatibility check:
 `deno test --config node/relay-hosted/deno.json --frozen --node-modules-dir=none --allow-read --allow-write --allow-net node/relay-hosted/server_test.ts`
@@ -44,8 +54,8 @@ signatures. `/register-build` sponsors only the configured registry's normalized
 code-admission check, enabling a friend to register their own signed copy without
 a gas key. Registration is not proof of valid Apple signing. Contract
 validation runs during gas estimation and again on chain. Unknown targets and
-administrator calls are not exposed. The currently deployed release configuration
-has no NFT addresses, so these routes remain disabled there.
+administrator calls are not exposed. The legacy root configuration has no NFT addresses; these routes are enabled
+on the separately configured `/nft` release.
 Mailboxes are untrusted and unauthenticated transport: malicious traffic can
 still delay or discard delivery. Peers verify chain/session/key bindings.
 

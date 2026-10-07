@@ -150,3 +150,20 @@ must explicitly support that route. In particular, a second team's differently
 signed build and an Apple-processed TestFlight build cannot be assumed to share
 a validation category. Preserve existing Mac membership/NFTs and test these
 bindings before enabling iPhone admission.
+
+
+## Additive relay routing
+
+The optional `/ios` route is implemented in source and tested with a loopback
+RPC stub. Five relay tests pass: cross-platform NFT mailbox exchange with
+separate enrollment categories and preserved legacy isolation/journal, absent
+iOS configuration, wrong registry, wrong sponsor, and reused Mac category.
+These are transport/configuration checks, not fresh iPhone attestations. No
+`network-ios.json` has been published and the deployed relay is unchanged.
+
+Apple's official [validation documentation](https://developer.apple.com/documentation/devicecheck/validating-apps-that-connect-to-your-server)
+was checked on 7 October: TestFlight uses validation category **2**, distinct
+from the retained ad-hoc fixture's **5** and the Mac release's Developer ID
+category **6**. Production iPhone admission must check the TestFlight profile
+explicitly; a passing ad-hoc fixture does not establish the installed beta's
+category, executable hash, or permitted independent-team signing path.

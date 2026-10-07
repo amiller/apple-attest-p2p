@@ -12,6 +12,14 @@ const deployment=JSON.parse(await Deno.readTextFile(new URL('./network.json',imp
 let nftDeployment:typeof deployment|undefined;
 try {nftDeployment=JSON.parse(await Deno.readTextFile(new URL('./network-nft.json',import.meta.url)));}
 catch(e) {if(!(e instanceof Deno.errors.NotFound))throw e;}
+// An optional iPhone route shares the NFT network and mailboxes, but has its
+// own code registry, attestation profile, and badge/account policy. Legacy field
+// aliases below keep transaction construction identical across the routes.
+let iosDeployment:typeof deployment|undefined;
+try {
+    const ios=JSON.parse(await Deno.readTextFile(new URL('./network-ios.json',import.meta.url)));
+    iosDeployment={...ios,macCategory:hex(ios.iosCategory,32),macAdapter:hex(ios.iosAdapter,20),macCDRegistry:hex(ios.iosCDRegistry,20)};
+} catch(e) {if(!(e instanceof Deno.errors.NotFound))throw e;}
 const response=(body:unknown,status=200)=>Response.json(body,{status});
 function need(ok:unknown,message:string):asserts ok {if(!ok)throw new Error(message);}
 function binary(value:unknown):Uint8Array {need(typeof value==='string' && value.length<64000,'invalid base64');return Uint8Array.from(atob(value),c=>c.charCodeAt(0));}
@@ -42,6 +50,15 @@ export class Relay {
         need(await this.client.getChainId()===deployment.chainId,'wrong chain');
         need(this.account.address.toLowerCase()===deployment.admin.toLowerCase(),'wrong sponsor');
         if(nftDeployment)need(nftDeployment.chainId===deployment.chainId && nftDeployment.admin.toLowerCase()===deployment.admin.toLowerCase(),'NFT route must share chain and sponsor');
+        if(iosDeployment) {
+            need(nftDeployment,'iPhone route requires NFT network');
+            need(iosDeployment.chainId===nftDeployment.chainId
+                && iosDeployment.admin.toLowerCase()===nftDeployment.admin.toLowerCase()
+                && iosDeployment.DemoV1.toLowerCase()===nftDeployment.DemoV1.toLowerCase(),
+                'iPhone route must share NFT chain, sponsor and registry');
+            for(const field of ['macCategory','macAdapter','macCDRegistry'])
+                need(iosDeployment[field].toLowerCase()!==nftDeployment[field].toLowerCase(),'iPhone route requires a separate admission policy');
+        }
         await Deno.mkdir(this.directory,{recursive:true});
         try {this.state=JSON.parse(await Deno.readTextFile(this.directory+'/state.json'));}
         catch(e) {if(!(e instanceof Deno.errors.NotFound))throw e;}
@@ -111,11 +128,13 @@ export class Relay {
     async handle(request:Request) {
         await this.initialized;
         const incoming=new URL(request.url).pathname.replace(/\/$/,'');
+        const ios=incoming==='/ios'||incoming.startsWith('/ios/');
         const nft=incoming==='/nft'||incoming.startsWith('/nft/');
+        if(ios&&!iosDeployment)return response({error:'iPhone route not configured'},404);
         if(nft&&!nftDeployment)return response({error:'NFT route not configured'},404);
-        const selected=nft?nftDeployment:deployment;
-        const path=nft?incoming.slice(4):incoming;
-        const mailboxPrefix=nft?'nft:':'';
+        const selected=ios?iosDeployment:nft?nftDeployment:deployment;
+        const path=(ios||nft)?incoming.slice(4):incoming;
+        const mailboxPrefix=(ios||nft)?'nft:':'';
         if(request.method==='GET' && ['/info','/_warmup'].includes(path))return response({owner:this.account.address,chainId:selected.chainId,registry:selected.DemoV1,protocolVersion:2});
         if(request.method==='GET' && path==='/status')return response({pending:Object.values(this.state.transactions).filter(e=>!e.complete).map(e=>({hash:e.hash,gas:parseTransaction(e.raw).gas?.toString()})),completed:Object.values(this.state.transactions).filter(e=>e.complete).length});
         if(request.method==='GET' && path.startsWith('/recv/')) {
