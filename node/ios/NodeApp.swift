@@ -39,7 +39,7 @@ final class ParticipantModel: ObservableObject {
             emit("simulator scenario",["scenario":scenario])
             emit("configured",["chainId":84532,"participant":"SIMULATED"])
             switch scenario {
-            case "claimed":emit("participating",[:]);emit("badge claimed",["badgeToken":42])
+            case "claimed", "upgrade-export":emit("participating",[:]);emit("badge claimed",["badgeToken":42])
             case "upgrade-approval":
                 emit("participating",[:]);emit("badge claimed",["badgeToken":42])
                 // Deliberately invalid fixture: UI consent only, no Node or signer.
@@ -116,13 +116,20 @@ final class ParticipantModel: ObservableObject {
             }
         }
     }
+    private func presentInvitation(_ invitation:UpgradeInvitation) {
+        do {
+            exportDocument = UpgradeDocument(data:try JSONEncoder().encode(invitation))
+            exportName = "AttestNode-upgrade-invitation.json";exportedRequest = nil;showingExport = true
+        } catch {upgradeNotice = error.localizedDescription}
+    }
     func saveInvitation() {
-        perform({try $0.exportUpgradeInvitation()}) {invitation in
-            do {
-                self.exportDocument = UpgradeDocument(data:try JSONEncoder().encode(invitation))
-                self.exportName = "AttestNode-upgrade-invitation.json";self.exportedRequest = nil;self.showingExport = true
-            } catch {self.upgradeNotice = String(describing:error)}
+        #if targetEnvironment(simulator)
+        if ProcessInfo.processInfo.environment["ATTESTNODE_UI_SCENARIO"] == "upgrade-export" {
+            presentInvitation(UpgradeInvitation(version:2,chainId:84532,badges:"SIMULATED",factory:"SIMULATED",account:"SIMULATED-ACCOUNT",participantToken:42,bundleId:"SIMULATED"))
+            return
         }
+        #endif
+        perform({try $0.exportUpgradeInvitation()},done:presentInvitation)
     }
     func importUpgrade(_ url:URL) {
         guard !upgradeBusy else {return}
@@ -152,7 +159,21 @@ final class ParticipantModel: ObservableObject {
         defer {exportDocument = nil;exportedRequest = nil}
         switch result {
         case .failure(let error):upgradeNotice = String(describing:error)
-        case .success:
+        case .success(let url):
+            #if targetEnvironment(simulator)
+            if ProcessInfo.processInfo.environment["ATTESTNODE_UI_SCENARIO"] == "upgrade-export" {
+                let access = url.startAccessingSecurityScopedResource()
+                defer {if access {url.stopAccessingSecurityScopedResource()}}
+                do {
+                    let data = try Data(contentsOf:url)
+                    try need(data == exportDocument?.data,"Exported file differs from the invitation")
+                    let invitation = try JSONDecoder().decode(UpgradeInvitation.self,from:data)
+                    try need(invitation.account == "SIMULATED-ACCOUNT","Wrong simulated invitation")
+                    upgradeNotice = "SIMULATED invitation saved and read back successfully. No account transfer occurred."
+                } catch {upgradeNotice = error.localizedDescription}
+                return
+            }
+            #endif
             if let request = exportedRequest {
                 perform({try $0.trackUpgrade(request)}) {_ in
                     self.upgradeNotice = "Import this request in your original app. Compare the new-key fingerprint, then approve the handoff. New key: \(hex(keccak(request.newPoint).prefix(8)))"

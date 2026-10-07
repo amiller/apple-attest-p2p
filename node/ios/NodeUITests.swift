@@ -57,6 +57,26 @@ final class NodeUITests:XCTestCase {
         app.buttons["Save invitation"].tap()
         XCTAssertTrue(app.staticTexts["Connect to the network before continuing the upgrade."].waitForExistence(timeout:5))
     }
+    func testUpgradeInvitationExport() {
+        let app = launch("upgrade-export")
+        app.buttons["Developer upgrade"].tap()
+        app.buttons["Save invitation"].tap()
+        XCTAssertTrue(app.buttons["Save"].waitForExistence(timeout:10))
+        capture("SIMULATED-invitation-export-picker")
+        app.buttons["Save"].tap()
+        if app.buttons["Replace"].waitForExistence(timeout:2) {app.buttons["Replace"].tap()}
+        XCTAssertTrue(app.staticTexts["SIMULATED invitation saved and read back successfully. No account transfer occurred."].waitForExistence(timeout:10))
+        capture("SIMULATED-invitation-export-readback")
+        app.buttons["OK"].tap()
+        app.buttons["Import upgrade file"].tap()
+        let saved = app.cells.matching(NSPredicate(format:"label CONTAINS %@", "AttestNode-upgrade-invitation")).firstMatch
+        XCTAssertTrue(saved.waitForExistence(timeout:10))
+        capture("SIMULATED-invitation-reimport-picker")
+        saved.tap()
+        // The actual importer decoded the saved invitation and reached the
+        // Node operation guard. A simulator fixture has no real Node to sign.
+        XCTAssertTrue(app.staticTexts["Connect to the network before continuing the upgrade."].waitForExistence(timeout:10))
+    }
     func testUpgradeConsentAndCancellation() {
         continueAfterFailure = false
         let app = XCUIApplication()

@@ -335,3 +335,35 @@ version 0.1.0/build 4. See
 The last observed server state was package processing. This is not a verified
 beta installation or proof that App Store Connect has cleared compliance.
 Neither network admission nor the Mac baseline was changed.
+
+
+## Real Files invitation round trip
+
+The follow-up `ios-file-roundtrip-validation` run passed **9 UI tests** and
+**19 injected callback checks**. It uses a clearly marked, non-signing simulated
+invitation but the actual app document exporter and the system Files picker.
+The test saves the invitation, replaces the previous test file, reads back the
+exact JSON bytes, selects that file in the importer, and reaches the node-operation
+guard after decoding it. There is no live node in the fixture, so it cannot
+prepare a cryptographic upgrade request or sign a handoff. This is evidence for
+the invitation document workflow, not for those remaining protocol steps.
+
+The initial export-only run also passed. The final run and source hashes are
+retained in [`ios-files-simulator-20261007`](../data/ios-files-simulator-20261007),
+with three screenshots from the Files test. The readback and reimport captures
+were visually inspected. To reproduce on the dedicated booted simulator, using
+a new output directory:
+
+```sh
+python3 scripts/release/test_ios_simulator.py \
+  --device 94AF2D7C-C88D-4CF1-A087-D73F9765DA81 --runtime 26.5 \
+  --out build/ios-file-roundtrip-validation
+```
+
+![Simulated invitation selected in the real Files importer](../data/ios-files-simulator-20261007/attachments/B74598C8-E6B1-4B2D-BCE3-0AA431B74D8F.png)
+
+The additional fixture and shared invitation-presentation helper postdate build
+4. A device-target Release compile also passed; its binary excludes the simulator
+selector and export-fixture strings. This is an unsigned compile check, not a
+new TestFlight upload. Build 4 remains the uploaded candidate. Positive request
+creation/export/tracking and second-team device handoff remain acceptance work.
