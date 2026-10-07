@@ -9,7 +9,7 @@ DEST = ROOT / 'node/ios'
 
 
 def main():
-    sources = ['../shared/Protocol.swift', '../shared/PersonalAccount.swift', '../shared/BadgeClaim.swift', '../shared/Upgrade.swift', '../shared/Chain.swift', '../shared/NativeAttestation.swift', '../shared/Node.swift', 'NetworkConfig.swift', 'NodeApp.swift']
+    sources = ['../shared/Protocol.swift', '../shared/PersonalAccount.swift', '../shared/BadgeClaim.swift', '../shared/Upgrade.swift', '../shared/Chain.swift', '../shared/NativeAttestation.swift', '../shared/Node.swift', 'NetworkConfig.swift', 'CodeEvidence.swift', 'NodeApp.swift']
     objects = []
     def oid(n):
         return f'{n:024X}'

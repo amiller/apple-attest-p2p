@@ -114,6 +114,16 @@ final class NodeUITests:XCTestCase {
             app.terminate()
         }
     }
+    func testCodeEvidenceUnavailableInSimulator() {
+        let app = launch("apple-failure")
+        app.buttons["Technical details"].tap()
+        app.buttons["Prepare code evidence"].tap()
+        let message = "Code admission evidence requires the installed iPhone app. Simulator evidence cannot admit a device build."
+        XCTAssertTrue(app.staticTexts[message].waitForExistence(timeout:10))
+        XCTAssertFalse(app.buttons["Share code evidence"].exists)
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format:"label CONTAINS %@", "code evidence unavailable")).firstMatch.exists)
+        capture("SIMULATED-code-evidence-unavailable")
+    }
     func testRetry() {
         let app = launch("retry")
         XCTAssertTrue(app.staticTexts["Waiting to reconnect…"].exists)

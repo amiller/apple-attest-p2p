@@ -419,3 +419,37 @@ not a distributed lock. Restore sponsor writes when the two transactions are
 reconciled. The iPhone category remains disabled for the subsequent explicit
 activation/physical-device acceptance steps. The Mac-only admission command
 must not be used for this process.
+
+
+## Installed-code export preparation (after build 4)
+
+The iPhone UI now offers Technical details → Prepare code evidence → Share code
+evidence. It reads the installed executable and exports only CodeDirectory,
+first code page, DER entitlements and load-command offsets in `cd_args.py` format,
+with app/build metadata. It does not include a provisioning profile, CMS
+signature, enrollment state or private keys. This local measurement is not Apple
+attestation or proof of provenance; review and live attestation remain required.
+Build 4 does not contain this feature.
+
+The bounded Swift parser passed 16 checks against the signed build-4 App Store
+export and malformed variants. Its six fields exactly matched Python
+`cd_args.py`. A device-target Release compile passed. The final simulator run
+passed all 10 UI tests and 19 injected callback checks, including simulator
+export refusal, visible error diagnostics, and copying the ordinary failure
+report. The simulator uses iOS 26.5 with the isolated test target lowered; the
+production app still requires iOS 27. Physical-device export and TestFlight
+re-signing behavior have not been verified.
+
+An intermediate UI test failed to open the diagnostic share sheet after
+collapsing details. Moving Share diagnostic report above the expandable section
+keeps its position stable; the full rerun passed. Evidence and source hashes are
+in [the validation record](../data/ios-code-evidence-20261007/validation.json).
+
+![Simulator explicitly refuses device code evidence](../data/ios-code-evidence-20261007/simulator-export-refusal.png)
+
+Run the parser checks on macOS against a signed device executable:
+
+```sh
+xcrun swiftc node/ios/CodeEvidence.swift node/tests/CodeEvidenceTests.swift -o build/code-evidence-tests
+build/code-evidence-tests /path/to/AttestNode.app/AttestNode build/code-evidence.json
+```

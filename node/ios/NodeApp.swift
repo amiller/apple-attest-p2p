@@ -15,6 +15,9 @@ final class ParticipantModel: ObservableObject {
     @Published var receiptURL: URL?
     @Published var lines = [String]()
     @Published var simulatorScenario = false
+    @Published var codeEvidenceURL:URL?
+    @Published var codeEvidenceError:String?
+    @Published var preparingCodeEvidence = false
     @Published var connected = false
     @Published var participantClaimed = false
     @Published var upgradeBusy = false
@@ -103,6 +106,33 @@ final class ParticipantModel: ObservableObject {
                 }
             }
         } catch {emit("stopped",["error":String(describing:error)])}
+    }
+    func prepareCodeEvidence() {
+        guard !preparingCodeEvidence else {return}
+        preparingCodeEvidence = true;codeEvidenceURL = nil;codeEvidenceError = nil
+        DispatchQueue.global(qos:.userInitiated).async {
+            do {
+                #if targetEnvironment(simulator)
+                throw CodeEvidence.Failure.invalid("Code admission evidence requires the installed iPhone app. Simulator evidence cannot admit a device build.")
+                #else
+                guard let executable = Bundle.main.executableURL else {throw CodeEvidence.Failure.invalid("Executable unavailable")}
+                let evidence = try CodeEvidence.extract(Data(contentsOf:executable))
+                var report = try JSONSerialization.jsonObject(with:JSONEncoder().encode(evidence)) as! [String:Any]
+                report["schema"] = 1;report["source"] = "installed-app-bundle"
+                report["bundleId"] = Bundle.main.bundleIdentifier ?? "unknown"
+                report["appVersion"] = Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") ?? "unknown"
+                report["appBuild"] = Bundle.main.object(forInfoDictionaryKey:"CFBundleVersion") ?? "unknown"
+                report["scope"] = "Local code evidence; not Apple attestation or proof of provenance. No profile, enrollment state or private keys included."
+                let url = FileManager.default.temporaryDirectory.appendingPathComponent("AttestNode-code-evidence.json")
+                try JSONSerialization.data(withJSONObject:report,options:[.sortedKeys]).write(to:url,options:.atomic)
+                self.emit("code evidence prepared",["cdhash":evidence.cdhash])
+                DispatchQueue.main.async {self.preparingCodeEvidence = false;self.codeEvidenceURL = url}
+                #endif
+            } catch {
+                self.emit("code evidence unavailable",["error":error.localizedDescription])
+                DispatchQueue.main.async {self.preparingCodeEvidence = false;self.codeEvidenceError = error.localizedDescription}
+            }
+        }
     }
     private func perform<T>(_ operation:@escaping (Node)throws->T,done:@escaping(T)->Void) {
         guard !upgradeBusy,connected,let node else {upgradeNotice = "Connect to the network before continuing the upgrade.";return}
@@ -193,7 +223,7 @@ final class ParticipantModel: ObservableObject {
     private func emit(_ event:String,_ fields:[String:Any]) {
         // Reports contain public receipts and bounded diagnostic metadata, never
         // enrollment blobs, private keys, or peer exchange payloads.
-        let allowed:Set<String> = ["appAttestSupported","scenario","os","appVersion","appBuild","stage","errorChain","chainId","registry","participant","error","errorDomain","errorCode","retryAfterSeconds","badgeToken","badgeLevel","badgeContract","personalAccount","tx","receipt","keyEpoch"]
+        let allowed:Set<String> = ["appAttestSupported","cdhash","scenario","os","appVersion","appBuild","stage","errorChain","chainId","registry","participant","error","errorDomain","errorCode","retryAfterSeconds","badgeToken","badgeLevel","badgeContract","personalAccount","tx","receipt","keyEpoch"]
         var entry = fields.filter {allowed.contains($0.key)}
         entry["event"] = event;entry["t"] = Date().timeIntervalSince1970
         guard let data = try? JSONSerialization.data(withJSONObject:entry,options:[.sortedKeys]) else {return}
@@ -264,10 +294,17 @@ struct NodeView: View {
                             }.disabled(participant.upgradeBusy)
                         }
                     }
+                    ShareLink(item:participant.lines.joined(separator:"\n")) {Label("Share diagnostic report",systemImage:"square.and.arrow.up")}
                     DisclosureGroup("Technical details") {
+                        VStack(alignment:.leading,spacing:12) {
+                            Text("For the release coordinator: export this installed app’s code evidence without its provisioning profile or private keys.").font(.footnote)
+                            Button("Prepare code evidence") {participant.prepareCodeEvidence()}.disabled(participant.preparingCodeEvidence)
+                            if participant.preparingCodeEvidence {ProgressView("Reading installed app…")}
+                            if let url = participant.codeEvidenceURL {ShareLink("Share code evidence",item:url)}
+                            if let error = participant.codeEvidenceError {Text(error).font(.footnote)}
+                        }
                         Text(participant.lines.joined(separator:"\n")).font(.caption.monospaced()).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading)
                     }
-                    ShareLink(item:participant.lines.joined(separator:"\n")) {Label("Share diagnostic report",systemImage:"square.and.arrow.up")}
                 }.padding(24)
             }.navigationTitle("Apple peer testnet").navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge:.top) {
