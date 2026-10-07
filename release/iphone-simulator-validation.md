@@ -367,3 +367,55 @@ The additional fixture and shared invitation-presentation helper postdate build
 selector and export-fixture strings. This is an unsigned compile check, not a
 new TestFlight upload. Build 4 remains the uploaded candidate. Positive request
 creation/export/tracking and second-team device handoff remain acceptance work.
+
+
+## Scoped iPhone code admission
+
+`scripts/release/admit_ios_release.py` now inspects or sets the disabled iPhone
+category's baseline independently of the active Mac category. Inspection is the
+default and requires no private key. The tool checks chain/network identity,
+distinct registries/categories, ownership, adapter bindings, production AAGUID,
+iOS ACL, TestFlight validation category 2, the supplied CD hash, and the on-chain
+code/entitlement measurement. With `--execute`, it journals the two signed
+transaction hashes before broadcasting setBuild/registerBuild. It refuses an
+existing journal, an enabled iPhone category, or a pending administrator nonce.
+It checks preservation of the Mac baseline/category/global pause state and the
+iPhone category policy. It never enables admission.
+
+Five integration tests passed on a disposable loopback Anvil chain: keyless
+read-only operation, invalid-input rejection without transactions, actual
+baseline/registration while preserving an active Mac policy, enabled-category
+rejection, and pending-administrator-transaction rejection. The test uses an
+existing historical iPhone CodeDirectory fixture to exercise registry mechanics;
+it does not demonstrate a real TestFlight attestation. An initial expanded-suite
+setup ran out of the local public development account's test balance. The fixture
+now replenishes that account through Anvil before deployment; all five tests then
+passed. No Base Sepolia contracts were modified.
+
+```sh
+anvil --host 127.0.0.1 --port 19475 --silent
+ATTEST_ADMISSION_TEST_RPC=http://127.0.0.1:19475 \
+  python3 -m unittest discover -s tests -p test_ios_admission.py -v
+```
+
+For the live operator, first obtain and review the **installed TestFlight**
+executable/profile evidence and extract its `cd_args.py` JSON. Provenance is not
+verified by this command; the report explicitly says so. Do not substitute the
+local IPA export and claim it is installed-build evidence. Then inspect:
+
+```sh
+python3 scripts/release/admit_ios_release.py \
+  --rpc https://sepolia.base.org \
+  --ios contracts/network/prepare-ios-base-sepolia.json \
+  --mac contracts/network/deploy-nft-base-sepolia.json \
+  --build /path/to/reviewed-installed-code.json \
+  --out build/ios-admission-plan.json
+```
+
+After reviewing the result, coordinate **all** administrator-key users, pause
+relay sponsor writes, confirm the journal is idle, and run with `--execute` and
+a fresh output path using the existing secure key mechanism. A nonce check is
+not a distributed lock. Restore sponsor writes when the two transactions are
+reconciled. The iPhone category remains disabled for the subsequent explicit
+activation/physical-device acceptance steps. The Mac-only admission command
+must not be used for this process.
