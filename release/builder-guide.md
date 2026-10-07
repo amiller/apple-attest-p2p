@@ -20,8 +20,8 @@ your private key or authorize anyone to take control of the account.
 
 ## 2. Build and sign your own copy
 
-With access to the private repository, fork tag `v0.1.0-rc.2` (app build source
-`adda809826358d2466b74a2f206c5921f75443a1`). Keep executable source
+Fork this repository and check out tag `v0.1.0-rc.2` (app build source
+`adda809826358d2466b74a2f206c5921f75443a1`; see the [public commit mapping](source-history.md)). Keep executable source
 unchanged so the network can recognize the code. Use the exact `bundleId` saved in your invitation and create a matching explicit
 App ID and provisioning profile under your team. Set `APPLE_BUNDLE_ID` to that
 value. The identifier includes your personal NFT account address; a generic

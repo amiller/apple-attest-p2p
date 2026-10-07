@@ -3,7 +3,25 @@
 Admission for a permissionless peer-to-peer network of iPhones and Macs, using App Attest on iOS/macOS 27. On those versions the App Attest attestation and assertions carry the running app's CDHash, so a contract can admit a device only if it runs a registered build. Copied out of `edge-tee/ios-app-attest` on 2026-10-06.
 
 Release work: [Mac reproducibility, fork/CI signing, and TestFlight checklist](release/README.md)
-and [first-run user flow](release/user-flow.md). The automatic public app is still in progress.
+and [first-run user flow](release/user-flow.md). The Mac participant release is available; the second-team and iPhone acceptance runs remain in progress.
+
+## Try the Mac demo
+
+Download **AttestNode-macOS27-arm64-v0.1.0-rc.2.zip** from the
+[latest release](https://github.com/amiller/apple-attest-p2p/releases/latest).
+On a supported Apple silicon Mac running macOS 27 with Full Security, open the
+app and keep it running. It joins the research testnet and claims a participant
+NFT automatically; no wallet setup or payment is required.
+
+- [What the app does and what it proves](release/PRD.md)
+- [First-run flow and troubleshooting](release/user-flow.md)
+- [Build/sign with your own Developer team for Level 2](release/builder-guide.md)
+- [iPhone/TestFlight status and testing evidence](release/iphone-simulator-validation.md)
+
+The independent-team handoff still needs a positive hardware acceptance run.
+iPhone build 4 has been uploaded to TestFlight, but tester access and installed
+code admission are not yet verified. See [source-history notes](release/source-history.md)
+when comparing original build-manifest commit IDs with this public history.
 
 Layout:
 - `contracts/` Foundry project: `CDRegistry` (admits any signer's re-sign of the approved build: code slots, masked page 0, CD header and entitlement key set pinned; RP ID = sha256(application-identifier)), `AppleAttestRegistryV1` / `MacAppAttestV1` adapters, `DemoV1` (application), P-384 and DER parsing, deploy script (`script/Network.s.sol`, outputs in `network/`). forge-std and OpenZeppelin 4.9.6 are vendored in `lib/`.
