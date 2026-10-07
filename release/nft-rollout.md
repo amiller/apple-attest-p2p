@@ -25,9 +25,18 @@ CodeDirectory, and recheck independent reproducibility before distribution.
 network and journals transaction hashes before submission. It never activates
 the network and refuses to reuse an existing output journal.
 
-Remaining rollout steps: deploy the compatibility relay; verify both `/info`
-routes and no pending transactions; finish the updated signed candidate; activate
-only the NFT network; run a separate persistent NFT seed; verify an automatic
+Candidate `adda809` now pins `/nft`, independently reproduces on GitHub and the
+Mac, and has passed notarization, stapled-ticket validation and signed-payload
+comparison. It is admitted while the NFT network remains paused. See the
+`*-nft-compatibility.json` reports and
+`contracts/network/cd-args-nft-compatibility.json` for the final candidate evidence.
+The compatibility relay is deployed; both `/info` routes return the intended
+registries and the sponsor journal has no pending transactions. Its completed
+count advanced from seven to eight while the legacy network remained active.
+An initial HTTP 500 during redeployment cleared after startup.
+
+Remaining rollout steps: activate only the NFT network; run a separate persistent
+NFT seed using `release/nft-seed.json`; verify an automatic
 participant claim, restart, and receipt ownership; package the release and real
 screenshots. Keep the original seed running. Clean second-Mac and independent
 developer-team acceptance remain separate required tests.
