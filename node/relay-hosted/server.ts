@@ -1,4 +1,4 @@
-import {createPublicClient, http, encodeFunctionData, encodeAbiParameters, keccak256, toHex, type Hex, type Address} from "npm:viem@2.38.0";
+import {createPublicClient, http, encodeFunctionData, encodeAbiParameters, keccak256, toHex, parseTransaction, type Hex, type Address} from "npm:viem@2.38.0";
 import {privateKeyToAccount} from "npm:viem@2.38.0/accounts";
 import {decode} from "npm:cbor-x@1.6.0/decode-no-eval";
 
@@ -51,12 +51,27 @@ export class Relay {
         });
         this.writeQueue=operation.catch(()=>{});return operation;
     }
-    private async settle(entry:Entry) {
+    private async settle(entry:Entry):Promise<Hex> {
         if(entry.complete){need(entry.success===true,"transaction reverted");return entry.hash;}
         let receipt;
         try {receipt=await this.client.getTransactionReceipt({hash:entry.hash});}catch { /* May not have been sent yet. */ }
         if(!receipt) {
-            try {await this.client.sendRawTransaction({serializedTransaction:entry.raw});}catch { /* Already known/mined is checked by receipt below. */ }
+            try {await this.client.sendRawTransaction({serializedTransaction:entry.raw});}catch(e) {
+                const details=e as {shortMessage?:string,details?:string};
+                const message=String(details.details||details.shortMessage||'submission failed');
+                const transaction=parseTransaction(entry.raw);
+                console.error('Transaction submission result',JSON.stringify({hash:entry.hash,gas:transaction.gas?.toString(),message:message.slice(0,400)}));
+                // Repair only this explicit sequencer rejection, retaining destination,
+                // calldata and nonce. A replacement cannot execute twice at one nonce.
+                if(deployment.chainId===84532 && message.toLowerCase().includes('gas limit too high') && transaction.type==='legacy' && transaction.gas!>16000000n) {
+                    const estimate=await this.client.estimateGas({account:this.account,to:transaction.to!,data:transaction.data});
+                    need(estimate<=16000000n,'enrollment exceeds relay gas cap');
+                    entry.raw=await this.account.signTransaction({type:'legacy',chainId:deployment.chainId,to:transaction.to!,data:transaction.data,nonce:transaction.nonce!,gas:estimate+estimate/10n>16000000n?16000000n:estimate+estimate/10n,gasPrice:transaction.gasPrice!});
+                    entry.hash=keccak256(entry.raw);await this.save();
+                    return await this.settle(entry);
+                }
+                // Already known/mined is resolved by the receipt below.
+            }
             receipt=await this.client.waitForTransactionReceipt({hash:entry.hash,timeout:90000,pollingInterval:1000});
         }
         // Persist the terminal state even on revert, so it cannot block later requests.
@@ -73,7 +88,9 @@ export class Relay {
             const gas=await this.client.estimateGas({account:this.account,to,data});
             const nonce=await this.client.getTransactionCount({address:this.account.address,blockTag:'pending'});
             const gasPrice=await this.client.getGasPrice()*2n;
-            const raw=await this.account.signTransaction({chainId:deployment.chainId,to,data,nonce,gas:gas+gas/5n,gasPrice,type:'legacy'});
+            need(deployment.chainId!==84532 || gas<=16000000n,'enrollment exceeds relay gas cap');
+            const limit=deployment.chainId===84532 && gas+gas/10n>16000000n?16000000n:gas+gas/10n;
+            const raw=await this.account.signTransaction({chainId:deployment.chainId,to,data,nonce,gas:limit,gasPrice,type:'legacy'});
             const entry={raw,hash:keccak256(raw),complete:false};this.state.transactions[id]=entry;
             // The exact signed transaction is durable BEFORE submission; retries reuse it.
             await this.save();return await this.settle(entry);
@@ -84,6 +101,7 @@ export class Relay {
         await this.initialized;
         const path=new URL(request.url).pathname.replace(/\/$/,'');
         if(request.method==='GET' && ['/info','/_warmup'].includes(path))return response({owner:this.account.address,chainId:deployment.chainId,registry:deployment.DemoV1,protocolVersion:2});
+        if(request.method==='GET' && path==='/status')return response({pending:Object.values(this.state.transactions).filter(e=>!e.complete).map(e=>({hash:e.hash,gas:parseTransaction(e.raw).gas?.toString()})),completed:Object.values(this.state.transactions).filter(e=>e.complete).length});
         if(request.method==='GET' && path.startsWith('/recv/')) {
             const name=path.slice(6);need(/^[a-zA-Z0-9_-]{1,80}$/.test(name),'invalid mailbox');
             const queue=(this.state.boxes[name]||[]).filter(x=>Date.now()-x.at<120000);

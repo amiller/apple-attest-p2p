@@ -24,3 +24,15 @@ The release-network configuration was embedded afterward and changes that hash.
 Window screenshot capture was unavailable in the remote session. The UI state
 and receipt were checked through the same event stream and status JSON the window
 uses; visual layout and clean-machine interaction still need a human/GUI check.
+
+## Live release-network run
+
+The final notarized GUI, launched with no arguments, automatically enrolled and
+received the shared key on Base Sepolia via the deployed HTTPS relay. Its receipt
+is `0x4c155f1b8ddb2ba0b7f32848d0d5bcfa380cef9ba316bd3e2b47fd2a5f0722e8`.
+The seed enrollment is `0xa2f0b446cdb3dfc384e121133f9161c65cb21811ddf8ee088c072373a288ee4b`.
+Retained streams are `base-sepolia-zero-setup.jsonl` and `base-sepolia-seed.jsonl`.
+This run still uses two processes on one Mac, not two independent devices.
+The seed is installed as `dev.dsmack.attestnode.release-seed` in the logged-in
+user's LaunchAgents. Logout stops user-session participation; login restarts it.
+All-holder key loss still requires explicit epoch recovery.

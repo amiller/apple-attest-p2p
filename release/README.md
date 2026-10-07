@@ -1,21 +1,32 @@
 # Mac release and TestFlight checklist
 
-Status, 6 October 2026: release engineering in progress. The existing peer demo ran
-successfully on Base Sepolia; this branch is not yet the zero-setup public application.
-Do not label its CLI bundle as a finished one-click release.
+Status: the Mac `v0.1.0-rc.1` candidate is Developer ID signed and notarized.
+The exact GUI completed a zero-argument launch, real App Attest enrollment and
+verified shared-key receipt on the separate Base Sepolia release network.
+The mini runs a persistent user-session seed; the HTTPS relay runs on the pod.
+
+Download the prerelease ZIP, extract **AttestNode.app**, and open it on an Apple
+Silicon Mac running macOS 27. It starts automatically. The window displays its
+state and verified receipt. Closing the window keeps the peer available in the
+menu bar; **Quit peer** stops it. No wallet, gas purchase, or configuration is needed.
+The repository/release is private: GitHub downloads require repository access.
+
+The clean-Mac Gatekeeper and visual interaction test is still required. The build
+mini has Gatekeeper disabled; a valid notarization ticket is not evidence of that
+independent install test. iOS/TestFlight distribution is not complete.
 
 ## Build without an Apple account
 
 On an Apple Silicon Mac with the exact Xcode/SDK/compiler in `toolchain.json`:
 
 ```sh
-python3 scripts/release/build_mac.py --out build/unsigned
-python3 scripts/release/check_repro.py --out build/repro
+python3 scripts/release/build_mac.py --gui --out build/unsigned
+python3 scripts/release/check_repro.py --gui --out build/repro
 ```
 
 Choose unused output directories. Set `DEVELOPER_DIR` to the matching Xcode when
 several are installed. The scripts fail on toolchain drift. They compile the
-existing peer with optimization, a fixed module name, stable relative source
+native participant with optimization, a fixed module name, stable relative source
 names, path remapping and no code signature. No package downloads are needed.
 The unsigned bundle cannot run App Attest: that requires signing/provisioning.
 
@@ -26,11 +37,17 @@ module caches, and compares all unsigned bundle files. This is a same-host test;
 independent builders must compare their own manifests too. A GitHub workflow or
 provenance statement is not itself proof of reproducibility.
 
-Measured on mini-mesh: both builds matched. Unsigned executable SHA-256:
+Historical CLI milestone on mini-mesh: both builds matched. Unsigned executable SHA-256:
 `89697437b904571409a94ada5f64a68c9e72078b2606ee9c64bb619adb635f72`.
 GitHub run 37545040726 independently reproduced both unsigned bundle files;
 see `independent-build-20261006.json`. These measurements apply to commit
-`d827cfa` and its unchanged CLI build inputs, not subsequent runtime or GUI work.
+`d827cfa` and its unchanged CLI build inputs.
+
+The released GUI is independently reproducible from clean source `ee74923` on
+GitHub and the mini, with unsigned executable SHA-256
+`56b618d28494cfefb4841261709ccd16a2f45b2a8dc27361d7099483b0f81c1f`.
+See `gui-independent-build-20261006.json` and `gui-build-manifest-20261006.json`.
+Signing and stapling preserve that payload (`gui-payload-verification-20261006.json`).
 
 ## Fork and build with GitHub resources
 
@@ -148,16 +165,20 @@ Guix build.
       against its binary, with category 6 and the same Developer ID CDHash.
 - [ ] Browser-download and open the exact ZIP in a clean Mac account with
       Gatekeeper enabled. The mini assessment reports `override=security disabled`.
-- [ ] Implement the first-run states in `user-flow.md` and a durable HTTPS relay.
-- [ ] Resolve persistent identity, assertion ordering, uncertain transaction
-      recovery, certificate expiry and bounded retry behavior.
+- [x] Implement automatic Mac enrollment/key receipt, persistent participation,
+      status JSON and a durable HTTPS relay. Live Base Sepolia launch passed.
+- [x] Persist enrollment identity, serialize each identity across processes, journal
+      relay transactions, and retry with bounded backoff. Restart/outage tests pass.
+- [ ] Exercise certificate expiry/renewal and long-running behavior end to end.
 - [x] Confirm faucet semantics: shared testnet signing key with a verifiable
       receipt. No wallet or token-claim flow is needed.
-- [ ] Resolve group-key loss: current listen cannot resume after all RAM holders
-      exit while the old key remains committed. Do not silently start a new network.
-- [ ] Test restart, lock/unlock, disconnect/reconnect, login launch and update.
-- [ ] Tag reviewed source; publish ZIP, checksum, source/build manifests,
-      network policy/configuration, known limits, and measured results.
+- [x] Add explicit administrator key epochs for complete RAM-key loss; test recovery
+      without changing network/member identity. No silent network or key reset.
+- [x] Test identity-preserving restart, onward transfer, relay disconnect/reconnect
+      and explicit epoch recovery on the real Mac with an isolated chain.
+- [ ] Test Mac lock/unlock, logout/login and release update installation.
+- [x] Prepare tagged prerelease ZIP, checksum, source/build manifests,
+      network configuration, known limits and measured results.
 - [ ] Friend signs a copy; independently verify its evidence and peer exchange.
 
 ## TestFlight is an active release track
@@ -218,17 +239,18 @@ three Developer ID tests and five epoch tests. Swift V1/V2 request hashes match
 independently generated ABI vectors. Generated iOS project regeneration is
 byte-identical. The first hosted unsigned CI job passed
 ([run 37545040726](https://github.com/amiller/apple-attest-p2p/actions/runs/37545040726));
-its downloaded unsigned bundle matches the mini byte for byte. No external TestFlight submission, persistent
-zero-setup participant, or public release has been completed by this branch.
+its downloaded unsigned bundle matches the mini byte for byte. The later GUI
+also matches independently (run 37549470397) and passed live zero-setup receipt
+on Base Sepolia. External TestFlight distribution remains pending.
 
 Release work is isolated on `release/mac-distribution`; the active visualization
 checkout is untouched. The private repository is `amiller/apple-attest-p2p`. The confirmed faucet
 is the shared testnet signing key with a verified exchange receipt; its
-all-holders-restart recovery remains a gate. Experimental `DemoV2` implements
+all-holders-restart recovery uses explicit administrator action. `DemoV2` implements
 explicit administrator-controlled key epochs, with five passing policy tests.
 The Swift peer supports the V2 context and opt-in saved enrollment identity and
-compiles on the pinned Mac toolchain; live restart and recovery validation remain
-required before deployment. Existing V1 network deployments are unchanged.
+compiles on the pinned Mac toolchain; live isolated-chain restart and recovery
+validation passed. Existing V1 network deployments are unchanged.
 
 ## Primary references
 
@@ -272,4 +294,5 @@ The separate Base Sepolia release deployment is recorded in
 `https://pod.dstack.soc1024.com/apple-attest-p2p-relay`. The sponsor credential was
 explicitly approved for this pod and is excluded from source and build artifacts.
 The exact protected Developer ID GUI is now registered and admission enabled;
-see `gui-network-activation-20261006.json`. Its live enrollment test is underway.
+see `gui-network-activation-20261006.json`. The exact notarized GUI completed
+normal zero-argument enrollment/key receipt; see `gui-live-network-20261006.json`.
