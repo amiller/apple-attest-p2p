@@ -15,15 +15,30 @@ p.add_argument('--activate',action='store_true',help='Enable admission immediate
 p.add_argument('--category',type=int,choices=(3,6),default=6)
 a=p.parse_args()
 if a.publisher_team and (len(a.publisher_team)!=10 or not a.publisher_team.isascii() or not a.publisher_team.isalnum() or a.publisher_team.upper()!=a.publisher_team):raise SystemExit('Invalid publisher Team ID')
-if a.out.exists():raise SystemExit('Output exists; refusing duplicate deployment')
+progress=a.out.with_suffix('.progress.json')
+if a.out.exists() or progress.exists():raise SystemExit('Deployment output/progress exists; inspect its transactions before attempting another deployment')
 w3=Web3(Web3.HTTPProvider(a.rpc,request_kwargs={'timeout':120}))
 if w3.eth.chain_id not in (31337,84532):raise SystemExit('Test networks only')
 account=Account.from_key(os.environ['PRIVATE_KEY'])
 receipts=[]
+journal=[]
+def save_progress():
+    progress.parent.mkdir(parents=True,exist_ok=True)
+    pending=progress.with_suffix('.tmp')
+    pending.write_text(json.dumps({'chainId':w3.eth.chain_id,'admin':account.address,'transactions':journal},indent=2)+'\n')
+    pending.replace(progress)
 def send(fn):
     gas=fn.estimate_gas({'from':account.address})
     tx=fn.build_transaction({'from':account.address,'nonce':w3.eth.get_transaction_count(account.address,'pending'),'gas':min(gas+gas//5,16000000) if w3.eth.chain_id==84532 else gas*2,'gasPrice':w3.eth.gas_price*2})
-    receipt=w3.eth.wait_for_transaction_receipt(w3.eth.send_raw_transaction(account.sign_transaction(tx).raw_transaction),timeout=180)
+    signed=account.sign_transaction(tx)
+    destination=tx.get('to')
+    if isinstance(destination,bytes):destination=Web3.to_hex(destination) if destination else None
+    entry={'hash':signed.hash.to_0x_hex(),'nonce':tx['nonce'],'to':destination,'status':'prepared'}
+    journal.append(entry);save_progress()
+    w3.eth.send_raw_transaction(signed.raw_transaction)
+    receipt=w3.eth.wait_for_transaction_receipt(signed.hash,timeout=180)
+    entry.update(status='confirmed' if receipt['status']==1 else 'reverted',contractAddress=receipt['contractAddress'])
+    save_progress()
     if receipt['status']!=1:raise RuntimeError('Deployment transaction reverted')
     receipts.append(receipt['transactionHash'].to_0x_hex())
     if w3.eth.chain_id==84532:time.sleep(4)

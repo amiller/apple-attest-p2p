@@ -38,9 +38,12 @@ provide a working download link and state the supported Mac/OS requirements.
 The NFT belongs to a participant-specific identity/account. The relay pays gas
 but must not receive the participant's NFT. The shared network signing key cannot
 serve as personal ownership: every participating peer intentionally receives it.
-Choose and document personal ownership, recovery, and migration before shipping
-the claim path. A lost installation must not silently be represented as the same
-participant or as a provably new physical device.
+The app creates a separate personal P256 key in its device-only Keychain and a
+testnet account controlled by that key. There is no sponsor recovery or key
+export. Moving control to the independently signed copy requires approval from
+both copies; losing the original key before that handoff loses account control.
+A lost installation must not silently be represented as the same participant
+or as a provably new physical device.
 
 ## Level 2: independent builder
 
