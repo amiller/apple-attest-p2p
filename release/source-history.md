@@ -24,3 +24,17 @@ See [the source audit](public-source-audit.json) and
 [release asset checks](public-release-asset-audit.json). Those scans cover the
 listed identifiers and credential patterns; they are not a proof that arbitrary
 undisclosed secrets can be recognized automatically.
+
+
+After publication, both CLI and GUI jobs passed in the new repository for latest
+source ([run 37689437062](https://github.com/amiller/apple-attest-p2p/actions/runs/37689437062))
+and the admitted RC2 tag
+([run 37689697594](https://github.com/amiller/apple-attest-p2p/actions/runs/37689697594)).
+The RC2 CI GUI executable has unsigned SHA-256
+`131ec74d226181401891f0c1e22136683e21b83d2917dd9ebe2b3b836b841c08`,
+matching the original mini build. Comparing it with the actual signed executable
+in the public app ZIP passed the existing strict payload verifier: all original
+bytes match except the appended signature load command and validated LINKEDIT
+sizes. This does not claim reproducible Apple signatures or notarization.
+See [the comparison evidence](../data/publication-20261007/rc2-public-ci-payload.json)
+and [CI build manifest](../data/publication-20261007/rc2-public-ci-build-manifest.json).
