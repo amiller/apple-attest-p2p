@@ -453,3 +453,12 @@ Run the parser checks on macOS against a signed device executable:
 xcrun swiftc node/ios/CodeEvidence.swift node/tests/CodeEvidenceTests.swift -o build/code-evidence-tests
 build/code-evidence-tests /path/to/AttestNode.app/AttestNode build/code-evidence.json
 ```
+
+Build 5 now packages these changes from public source `42a0beb`. Its signed
+App Store export passed strict signature, production App Attest, iOS 27 minimum,
+non-exempt encryption declaration and simulator-fixture exclusion checks. The
+parser passed all 16 checks against this new export, and all six fields matched
+Python exactly. Upload succeeded; Apple reported processing. These are export
+and upload checks, not an installed TestFlight or physical-device success. See
+[build 5 export](iphone-build5-export.json) and
+[upload receipt](iphone-testflight-build5-upload.json).

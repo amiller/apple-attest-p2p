@@ -1,12 +1,17 @@
 # TestFlight handoff and review preparation
 
-Status: version 0.1.0/build 4 uploaded successfully, with the tested developer
-upgrade UI and the exempt-encryption declaration. Xcode last reported that the
-package was processing. Build 3 (previously Missing Compliance) is superseded;
-no completed compliance or tester-assignment check has been observed for build 4.
-This is a diagnostic candidate, not a claim that friends can already join from
-it. The published iPhone category is disabled pending installed-build admission.
-Do not use the public-beta text below until the positive device run passes.
+Status: version 0.1.0/build 5 uploaded successfully from public source
+`42a0beba0e650c118332472399443877e2f730d0`. It includes developer upgrade UI,
+installed-code evidence export, improved diagnostic sharing and the exempt-
+encryption declaration. Xcode last reported that the package was processing.
+Build 3 (shown as Missing Compliance) and build 4 are older candidates; processing
+completion, compliance status and tester assignment have not been observed for
+build 5. This is a diagnostic candidate, not a claim that friends can already
+join from it. The iPhone category remains disabled pending installed-build
+admission. Do not use the public-beta text below until the positive device run
+passes. See [export inspection](iphone-build5-export.json),
+[upload receipt](iphone-testflight-build5-upload.json) and
+[simulator evidence](iphone-simulator-validation.md).
 
 ## Proposed beta description
 
@@ -39,9 +44,14 @@ losing its account key can lose control of its research account.
 
 ## Operator sequence
 
-1. Inspect App Store Connect app 6819392473 for version 0.1.0/build 4. Verify
+1. Inspect App Store Connect app 6819392473 for the latest uploaded build. Verify
    processing, export-compliance status and the existing Lab internal group.
-2. Obtain the installed TestFlight build's code measurement/evidence. Compare
+2. On build 5 or later, open Technical details → Prepare code evidence → Share
+   code evidence to obtain the installed app's public measurement JSON. This
+   export omits profiles, enrollment state and private keys; its positive
+   physical-device path is not yet verified. Export failures appear in the
+   ordinary diagnostic report. Treat the JSON as untrusted input, not proof of
+   provenance or attestation. Compare
    its actual CodeDirectory and signed attestation profile with the uploaded
    executable; Apple re-signs distributed apps. Expect validation category 2.
 3. Admit only the verified code under the new iPhone registry and validate the
@@ -60,6 +70,6 @@ The local Keccak implementation is hashing, not an encryption implementation.
 Apple's [encryption documentation table](https://developer.apple.com/help/app-store-connect/reference/export-compliance-documentation-for-encryption/)
 identifies OS-only encryption as not requiring uploaded encryption documentation.
 Build 3 lacked an explicit `ITSAppUsesNonExemptEncryption` entry and the screenshot
-showed Missing Compliance. Build 4 includes
-`ITSAppUsesNonExemptEncryption=false`, verified in its signed IPA. Reassess this
+showed Missing Compliance. Builds 4 and 5 include
+`ITSAppUsesNonExemptEncryption=false`, verified in both signed IPA exports. Reassess this
 classification if a fork adds encryption implementations or libraries.
