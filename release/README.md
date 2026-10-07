@@ -6,7 +6,7 @@ verified shared-key receipt on the separate Base Sepolia release network.
 The mini runs a persistent user-session seed; the HTTPS relay runs on the pod.
 
 Download the prerelease ZIP, extract **Node.app**, and open it on an Apple
-Silicon Mac running macOS 27. It starts automatically. The window displays its
+Silicon Mac running macOS 27 with Full Security and SIP enabled. It starts automatically. The window displays its
 state and verified receipt. Closing the window keeps the peer available in the
 menu bar; **Quit peer** stops it. No wallet, gas purchase, or configuration is needed.
 The [repository and release downloads](https://github.com/amiller/apple-attest-p2p/releases/tag/v0.1.0-rc.2) are public; no GitHub account is needed.

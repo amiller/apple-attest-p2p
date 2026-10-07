@@ -15,6 +15,8 @@ sign the same app using your own Apple Developer team. Run that copy to earn the
 independent-builder NFT. Both receipts are testnet souvenirs with no monetary
 value.”
 
+Supported Macs need Apple silicon, macOS 27, Full Security, and SIP enabled;
+see the [friend guide](friend-guide.md) for requirements and the failure-report path.
 The first experience requires no developer account, terminal commands, wallet
 setup, gas purchase, or network configuration. Download access and the normal
 macOS first-open confirmation are separate from application setup. The [friend handoff](friend-guide.md) provides an unlisted app download without

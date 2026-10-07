@@ -1,9 +1,18 @@
 # Sample app first-run contract
 
 This is the release acceptance specification. The Mac GUI now implements automatic
-connection, key receipt, persistent participation, menu-bar status and bounded
-retry. Isolated real-device tests cover restart and onward exchange; the clean
+connection, key receipt, persistent participation, menu-bar status and retry
+delays capped at 60 seconds. RC2 can still retry permanent Apple errors; it does
+not yet implement all rejection/preflight states in the table below. Isolated real-device tests cover restart and onward exchange; the clean
 Mac, visual layout, launch-at-login preference and iOS flow remain release gates.
+
+Supported Macs require Apple silicon, macOS 27, Full Security, and SIP enabled.
+Apple documents the key policy in its
+[App Attest overview](https://developer.apple.com/videos/play/wwdc2026/201/?time=671).
+The next Mac release should state these prerequisites before reporting generic
+attestation failure, preserve existing identities, and stop repeated terminal
+Apple failures with one shareable diagnostic. RC2 users should follow the
+[friend guide](friend-guide.md) if they encounter repeated errors.
 
 Opening the app begins enrollment automatically. No network chooser, configuration
 editor, wallet connection or gas purchase. The distributed bundle pins the network

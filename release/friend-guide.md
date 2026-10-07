@@ -1,12 +1,18 @@
 # Try AttestNode
 
-**Mac prerelease:** Apple Silicon and macOS 27 are required. The app is available
+**Mac prerelease:** Apple silicon, macOS 27, **Full Security**, and enabled
+**System Integrity Protection (SIP)** are required. Reduced Security is unsupported
+for this demo. Apple explains these App Attest requirements in its
+[macOS security-policy overview](https://developer.apple.com/videos/play/wwdc2026/201/?time=671).
+The app is available
 without a GitHub account from the [unlisted handoff page](https://pod.dstack.soc1024.com/artifact-reports-2026b/attestnode-friend-handoff--D8rHDc-ANNzKZ_C7Vcy5bQ/).
 Anyone holding that link can download it. The
 [GitHub source and releases](https://github.com/amiller/apple-attest-p2p) are also
 public, with no account required to download the app.
-This candidate passed a real Mac network/claim run; a clean second-Mac first-open
-test and the independent-developer upgrade are still awaiting acceptance.
+This candidate passed a real Mac network/claim run. A friend also reported
+success, and the participant NFT receipt was independently checked. A clean
+second-Mac first-open capture and the independent-developer upgrade remain
+unverified.
 
 1. Open the handoff page and choose **Download the Mac app**. The
    [GitHub release](https://github.com/amiller/apple-attest-p2p/releases/tag/v0.1.0-rc.2)
@@ -18,6 +24,18 @@ test and the independent-developer upgrade are still awaiting acceptance.
    connection problems and shows its current progress.
 4. Choose **View NFT receipt** to inspect your testnet souvenir. Closing the window
    leaves your peer running; Quit stops it. Reopening restores your existing NFT.
+
+If it stays on “Verifying this app” or repeats the same Apple error, choose
+**Show technical details**, then use **Save status image…** in the Testnet menu.
+Send that image and, if possible, the visible error text to the person coordinating
+your test. Include whether you deliberately enabled Reduced Security; an SIP
+status check alone does not establish Full Security. Choose **Quit peer** to stop
+repeated attempts. The error code alone does not prove a security-setting problem.
+
+Keep the app's saved identity and Keychain entries. Do not delete them as a generic
+retry step: they can hold access to an existing NFT account. RC2 does not yet
+explain every permanent Apple failure in its main status text. You are not expected
+to run a sequence of Terminal diagnostics to join this prerelease.
 
 ![The actual connected app](../data/nft-base-live-20261007/participant-claimed.png)
 
