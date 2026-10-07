@@ -10,9 +10,11 @@ p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('--rpc',required=True)
 p.add_argument('--build',type=Path,required=True)
 p.add_argument('--out',type=Path,required=True)
+p.add_argument('--publisher-team',help='Deploy NFT badges and account factory for this publisher Team ID')
 p.add_argument('--activate',action='store_true',help='Enable admission immediately (otherwise deploy paused)')
 p.add_argument('--category',type=int,choices=(3,6),default=6)
 a=p.parse_args()
+if a.publisher_team and (len(a.publisher_team)!=10 or not a.publisher_team.isascii() or not a.publisher_team.isalnum() or a.publisher_team.upper()!=a.publisher_team):raise SystemExit('Invalid publisher Team ID')
 if a.out.exists():raise SystemExit('Output exists; refusing duplicate deployment')
 w3=Web3(Web3.HTTPProvider(a.rpc,request_kwargs={'timeout':120}))
 if w3.eth.chain_id not in (31337,84532):raise SystemExit('Test networks only')
@@ -20,15 +22,15 @@ account=Account.from_key(os.environ['PRIVATE_KEY'])
 receipts=[]
 def send(fn):
     gas=fn.estimate_gas({'from':account.address})
-    tx=fn.build_transaction({'from':account.address,'nonce':w3.eth.get_transaction_count(account.address,'pending'),'gas':gas*2,'gasPrice':w3.eth.gas_price*2})
+    tx=fn.build_transaction({'from':account.address,'nonce':w3.eth.get_transaction_count(account.address,'pending'),'gas':min(gas+gas//5,16000000) if w3.eth.chain_id==84532 else gas*2,'gasPrice':w3.eth.gas_price*2})
     receipt=w3.eth.wait_for_transaction_receipt(w3.eth.send_raw_transaction(account.sign_transaction(tx).raw_transaction),timeout=180)
     if receipt['status']!=1:raise RuntimeError('Deployment transaction reverted')
     receipts.append(receipt['transactionHash'].to_0x_hex())
     if w3.eth.chain_id==84532:time.sleep(4)
     return receipt
 
-def contract(name,*args):
-    artifact=json.loads((ROOT/'contracts/out'/f'{name}.sol'/f'{name}.json').read_text())
+def contract(name,*args,source=None):
+    artifact=json.loads((ROOT/'contracts/out'/f'{source or name}.sol'/f'{name}.json').read_text())
     factory=w3.eth.contract(abi=artifact['abi'],bytecode=artifact['bytecode']['object'])
     address=send(factory.constructor(*args))['contractAddress']
     return w3.eth.contract(address=address,abi=artifact['abi'])
@@ -47,5 +49,10 @@ send(demo.functions.addCategory(family,policy,adapter.address,True))
 send(demo.functions.setCategoryEnabled(id,True))
 if a.activate:send(demo.functions.setPaused(False))
 result={'protocolVersion':2,'chainId':w3.eth.chain_id,'admin':account.address,'DemoV1':demo.address,'macCDRegistry':cds.address,'macAdapter':adapter.address,'macCategory':Web3.to_hex(id),'DemoV1Artifact':'out/DemoV2.sol/DemoV2.json','CDRegistryArtifact':'out/CDRegistry.sol/CDRegistry.json','AdapterArtifact':'out/AppleAttestRegistryV1.sol/AppleAttestRegistryV1.json','transactions':receipts}
+if a.publisher_team:
+    import hashlib
+    badges=contract('ResearchBadges',demo.address,adapter.address,id,hashlib.sha256(a.publisher_team.encode()).digest())
+    factory=contract('PersonalBadgeAccountFactory',badges.address,source='PersonalBadgeAccount')
+    result.update(ResearchBadges=badges.address,PersonalBadgeAccountFactory=factory.address,publisherTeam=a.publisher_team)
 a.out.parent.mkdir(parents=True,exist_ok=True);a.out.write_text(json.dumps(result,indent=2)+'\n')
 print(json.dumps(result,indent=2))

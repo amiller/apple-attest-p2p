@@ -1,6 +1,13 @@
 #if GUI
 import AppKit
 
+final class StatusContentView: NSView {
+    override var isOpaque:Bool {true}
+    override func draw(_ dirtyRect:NSRect) {
+        NSColor.windowBackgroundColor.setFill();dirtyRect.fill()
+    }
+}
+
 final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var window: NSWindow!
     private var menuItem: NSStatusItem!
@@ -9,6 +16,8 @@ final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let receiptLabel=NSTextField(wrappingLabelWithString:"No verified key receipt yet")
     private let badgeLabel=NSTextField(wrappingLabelWithString:"Participant NFT: waiting for a connection")
     private let badgeReceiptButton=NSButton(title:"View NFT receipt",target:nil,action:nil)
+    private let diagnosticScroll=NSScrollView()
+    private let detailsButton=NSButton(title:"Show technical details",target:nil,action:nil)
     private let diagnostics=NSTextView()
     private var status=[String:Any]()
     private var eventLines=[String]()
@@ -17,7 +26,8 @@ final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
-        window=NSWindow(contentRect:NSRect(x:0,y:0,width:740,height:620),styleMask:[.titled,.closable,.miniaturizable,.resizable],backing:.buffered,defer:false)
+        window=NSWindow(contentRect:NSRect(x:0,y:0,width:740,height:440),styleMask:[.titled,.closable,.miniaturizable,.resizable],backing:.buffered,defer:false)
+        window.contentView=StatusContentView(frame:window.contentView!.frame)
         window.title=ReleaseNetwork.name;window.delegate=self;window.isReleasedWhenClosed=false
         titleLabel.font = .systemFont(ofSize:25,weight:.semibold)
         detailLabel.textColor = .secondaryLabelColor
@@ -25,15 +35,17 @@ final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
         badgeReceiptButton.target=self;badgeReceiptButton.action=#selector(openBadgeReceipt);badgeReceiptButton.isEnabled=false
         if ReleaseNetwork.settings?["badges"] == nil {badgeLabel.stringValue="This preview connects to the network; NFT claims are not enabled."}
         diagnostics.isEditable=false;diagnostics.font = .monospacedSystemFont(ofSize:11,weight:.regular)
-        let scroll=NSScrollView();scroll.documentView=diagnostics;scroll.hasVerticalScroller=true
+        detailsButton.target=self;detailsButton.action=#selector(toggleDetails)
+        let scroll=diagnosticScroll;scroll.isHidden=true;scroll.documentView=diagnostics;scroll.hasVerticalScroller=true
         let caption=NSTextField(labelWithString:"Research testnet • no monetary value • shared key stays in memory")
         caption.font = .systemFont(ofSize:11);caption.textColor = .secondaryLabelColor
-        let stack=NSStackView(views:[titleLabel,detailLabel,receiptLabel,badgeLabel,badgeReceiptButton,caption,scroll])
+        let stack=NSStackView(views:[titleLabel,detailLabel,receiptLabel,badgeLabel,badgeReceiptButton,caption,detailsButton,scroll])
         stack.orientation = .vertical;stack.alignment = .leading;stack.spacing=18;stack.translatesAutoresizingMaskIntoConstraints=false
         let content=window.contentView!;content.addSubview(stack)
-        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo:content.leadingAnchor,constant:24),stack.trailingAnchor.constraint(equalTo:content.trailingAnchor,constant:-24),stack.topAnchor.constraint(equalTo:content.topAnchor,constant:24),stack.bottomAnchor.constraint(equalTo:content.bottomAnchor,constant:-24),scroll.widthAnchor.constraint(equalTo:stack.widthAnchor),scroll.heightAnchor.constraint(greaterThanOrEqualToConstant:160),detailLabel.widthAnchor.constraint(equalTo:stack.widthAnchor),receiptLabel.widthAnchor.constraint(equalTo:stack.widthAnchor),badgeLabel.widthAnchor.constraint(equalTo:stack.widthAnchor)])
+        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo:content.leadingAnchor,constant:24),stack.trailingAnchor.constraint(equalTo:content.trailingAnchor,constant:-24),stack.topAnchor.constraint(equalTo:content.topAnchor,constant:24),stack.bottomAnchor.constraint(lessThanOrEqualTo:content.bottomAnchor,constant:-24),scroll.widthAnchor.constraint(equalTo:stack.widthAnchor),scroll.heightAnchor.constraint(greaterThanOrEqualToConstant:160),detailLabel.widthAnchor.constraint(equalTo:stack.widthAnchor),receiptLabel.widthAnchor.constraint(equalTo:stack.widthAnchor),badgeLabel.widthAnchor.constraint(equalTo:stack.widthAnchor)])
         let menu=NSMenu()
         menu.addItem(withTitle:"Show testnet status",action:#selector(showWindow),keyEquivalent:"").target=self
+        menu.addItem(withTitle:"Save status image…",action:#selector(saveStatusImage),keyEquivalent:"").target=self
         menu.addItem(.separator())
         menu.addItem(withTitle:"Quit peer",action:#selector(quit),keyEquivalent:"q").target=self
         menuItem=NSStatusBar.system.statusItem(withLength:NSStatusItem.variableLength)
@@ -43,6 +55,26 @@ final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
         DispatchQueue.global(qos:.utility).async {self.runParticipant()}
     }
     @objc private func showWindow() {window.makeKeyAndOrderFront(nil);NSApp.activate(ignoringOtherApps:true)}
+    @objc private func toggleDetails() {
+        let show=diagnosticScroll.isHidden;diagnosticScroll.isHidden = !show
+        detailsButton.title=show ? "Hide technical details":"Show technical details"
+        var frame=window.frame;let delta:CGFloat=show ? 200:-200
+        frame.origin.y-=delta;frame.size.height+=delta;window.setFrame(frame,display:true,animate:true)
+    }
+    private func captureStatus(to url:URL) throws {
+        guard let content=window.contentView else {throw DemoError.invalid("status view unavailable")}
+        content.layoutSubtreeIfNeeded();window.displayIfNeeded()
+        guard let bitmap=content.bitmapImageRepForCachingDisplay(in:content.bounds) else {throw DemoError.invalid("status image unavailable")}
+        content.cacheDisplay(in:content.bounds,to:bitmap)
+        guard let png=bitmap.representation(using:.png,properties:[:]) else {throw DemoError.invalid("status PNG unavailable")}
+        try png.write(to:url,options:.atomic)
+    }
+    @objc private func saveStatusImage() {
+        let panel=NSSavePanel();panel.nameFieldStringValue="AttestNode-status.png"
+        if panel.runModal() == .OK,let url=panel.url {
+            do {try captureStatus(to:url)} catch {NSAlert(error:error).runModal()}
+        }
+    }
     @objc private func openBadgeReceipt() {
         guard let contract=status["badgeContract"] as? String,let token=status["badgeToken"],
               (status["chainId"] as? NSNumber)?.uint64Value==84532,let url=URL(string:"https://sepolia.basescan.org/token/\(contract)?a=\(token)") else {return}
@@ -102,7 +134,7 @@ final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
             case "attesting":self.setState("attesting","Verifying this app…","Checking the signed app and this Mac’s attestation identity.")
             case "getting key":self.setState("getting-key","Getting the shared testnet key…","Waiting for an admitted peer and a verifiable receipt.")
             case "key verified":
-                self.receiptLabel.stringValue="Verified receipt: \(fields["receipt"] ?? "")\nKey epoch: \(fields["keyEpoch"] ?? 0)\nPublic key: \(fields["groupPublic"] ?? "")"
+                self.receiptLabel.stringValue="Shared testnet key verified · epoch \(fields["keyEpoch"] ?? 0)"
             case "participating":self.setState("active","You’re connected","The shared key is verified. This Mac is available to admitted peers; closing the window keeps it running.")
             case "peer holds group key":
                 if let peer=fields["peer"] as? String {self.peerNames.insert(peer)}
@@ -113,6 +145,13 @@ final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
             default:break
             }
             self.writeStatus()
+            // Explicit agent invocation captures the same AppKit view as the menu
+            // action, after a confirmed claim. No whole-desktop permission needed.
+            let args=CommandLine.arguments
+            if event=="badge claimed",args.count==3,args[1]=="--capture-status" {
+                do {try self.captureStatus(to:URL(fileURLWithPath:args[2]));print("Status image saved");fflush(stdout)}
+                catch {NSLog("Status image failed: %@",String(describing:error))}
+            }
         }
     }
     private func setState(_ state:String,_ title:String,_ detail:String) {

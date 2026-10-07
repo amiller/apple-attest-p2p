@@ -1,7 +1,9 @@
 # Two-level NFT implementation notes
 
 Status: contracts, Mac participant claim client, and relay routes implemented locally;
-not deployed or validated as a complete live NFT journey.
+Level 1 deployed and exercised with real Mac attestation on isolated Anvil.
+See [the screenshot and agent transcript](agent-transcript-nft.md). Public Base
+Sepolia NFT distribution and the Level 2 live journey remain incomplete.
 The signed v0.1.0-rc.1 app still implements only shared-key participation.
 
 `ResearchBadges` is separate from the legacy sponsor-owned NFT action. It uses a
