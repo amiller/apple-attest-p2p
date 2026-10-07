@@ -1,10 +1,11 @@
 # TestFlight handoff and review preparation
 
-Status: version 0.1.0/build 3 uploaded successfully. The user-provided App Store
-Connect screenshot shows **Missing Compliance**. Tester assignment and beta
-review are not yet verified. This
-is a diagnostic candidate, not a claim that friends can already join from it.
-The published iPhone category is disabled pending installed-build admission.
+Status: version 0.1.0/build 4 uploaded successfully, with the tested developer
+upgrade UI and the exempt-encryption declaration. Xcode last reported that the
+package was processing. Build 3 (previously Missing Compliance) is superseded;
+no completed compliance or tester-assignment check has been observed for build 4.
+This is a diagnostic candidate, not a claim that friends can already join from
+it. The published iPhone category is disabled pending installed-build admission.
 Do not use the public-beta text below until the positive device run passes.
 
 ## Proposed beta description
@@ -38,7 +39,7 @@ losing its account key can lose control of its research account.
 
 ## Operator sequence
 
-1. Inspect App Store Connect app 6819392473 for version 0.1.0/build 3. Verify
+1. Inspect App Store Connect app 6819392473 for version 0.1.0/build 4. Verify
    processing, export-compliance status and the existing Lab internal group.
 2. Obtain the installed TestFlight build's code measurement/evidence. Compare
    its actual CodeDirectory and signed attestation profile with the uploaded
@@ -50,16 +51,15 @@ losing its account key can lose control of its research account.
 5. Finish external-beta metadata/review/group setup and verify a friend-accessible
    TestFlight link. Publish that exact tested link and the observed limitations.
 6. Complete the independent-team signing and upgrade flow separately. Source
-   work adds invitation/request import/export and explicit account-transfer
-   consent. These controls are not included in uploaded build 3 and do not yet
-   have a positive second-team device acceptance run.
+   and build 4 include invitation/request import/export and explicit account-
+   transfer consent. They do not yet have a positive second-team device run.
 
 The app encrypts peer parcels with Apple's CryptoKit (P256 key agreement, HKDF,
 AES-GCM), uses system TLS, and stores personal keys through Security/Keychain.
 The local Keccak implementation is hashing, not an encryption implementation.
 Apple's [encryption documentation table](https://developer.apple.com/help/app-store-connect/reference/export-compliance-documentation-for-encryption/)
 identifies OS-only encryption as not requiring uploaded encryption documentation.
-The uploaded candidate lacks an explicit `ITSAppUsesNonExemptEncryption` entry;
-the screenshot confirms its declaration is pending. The source generator now
-sets `ITSAppUsesNonExemptEncryption=false` for future builds. Reassess this
+Build 3 lacked an explicit `ITSAppUsesNonExemptEncryption` entry and the screenshot
+showed Missing Compliance. Build 4 includes
+`ITSAppUsesNonExemptEncryption=false`, verified in its signed IPA. Reassess this
 classification if a fork adds encryption implementations or libraries.

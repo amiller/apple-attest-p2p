@@ -9,7 +9,8 @@ app, including OS/app versions, the failed Apple operation and nested error code
 
 **Not yet a TestFlight release.** A separate iPhone category is now deployed on
 Base Sepolia but disabled, with no admitted executable. The configured iPhone
-IPA was signed/exported and uploaded as version 0.1.0/build 3. Processing,
+IPA was signed/exported and uploaded as version 0.1.0/build 4, including the
+developer-upgrade controls and encryption declaration. Build 3 is superseded. Processing,
 beta distribution, installed TestFlight measurement and iPhone activation remain
 unverified; the working Mac policy is unchanged. The simulator success scenario
 uses injected events: it does not attest, obtain a key, or mint an NFT.
@@ -294,3 +295,43 @@ These checks do **not** validate successful invitation/request file export, the
 positive cryptographic handoff, second-team signing, installed TestFlight code,
 or physical-device admission. Uploaded build 3 predates these controls. The
 next device archive must be a new build and must exclude simulator selectors.
+
+
+## Build 4 device archive and export
+
+Source revision `70d43ab` was archived on mini-mesh with the production iOS 27
+target and `CURRENT_PROJECT_VERSION=4`. The archive and local App Store export
+both returned exit 0. `codesign --verify --deep --strict` passed; the export has
+production App Attest plus CDhash opt-in, an explicit exempt-encryption flag,
+and none of the simulator scenario selectors. Public hashes are recorded in
+[`iphone-upgrade-export.json`](iphone-upgrade-export.json).
+
+Commands from `~/agent-drop/iphone-friend-flow` after the authorized dedicated
+signing keychain was unlocked (no credential value is recorded):
+
+```sh
+xcodebuild -quiet -project node/ios/AttestNode.xcodeproj -scheme AttestNode \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -archivePath build/AttestNode-iOS27-upgrade.xcarchive \
+  DEVELOPMENT_TEAM=DC9JH5DRMY CURRENT_PROJECT_VERSION=4 \
+  -allowProvisioningUpdates archive
+xcodebuild -quiet -exportArchive \
+  -archivePath build/AttestNode-iOS27-upgrade.xcarchive \
+  -exportOptionsPlist build/TestFlightExportOptions.plist \
+  -exportPath build/app-store-upgrade-export -allowProvisioningUpdates
+```
+
+The export options use `method=app-store-connect`, `destination=export`,
+`signingStyle=automatic`, team `DC9JH5DRMY`, upload symbols enabled, and automatic
+version/build management disabled. The next upload uses the same options with
+`destination=upload`, preserving build 4. The local exported CodeDirectory is
+not a verified installed TestFlight measurement and has not been admitted.
+
+
+Build 4 upload completed with exit 0 at Mac log time 2026-10-07 13:57:17.515.
+Xcode reported “Upload succeeded”; structured ContentDelivery metadata confirms
+version 0.1.0/build 4. See
+[`iphone-testflight-build4-upload.json`](iphone-testflight-build4-upload.json).
+The last observed server state was package processing. This is not a verified
+beta installation or proof that App Store Connect has cleared compliance.
+Neither network admission nor the Mac baseline was changed.
