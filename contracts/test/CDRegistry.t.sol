@@ -89,6 +89,17 @@ contract CDRegistryTest is Test {
         r.registerBuild(malformedCD, page0, ent);
         assertEq(r.teamIdHash(bytes32(uint256(123))), 0);
     }
+    function test_BundleIdentityIsSealedAndSeparateFromPrefix() public {
+        CDRegistry r = mac();bytes32 original = file(r, "A-original");
+        assertEq(r.bundleIdHash(original), sha256("dev.dsmack.provider"));
+        bytes memory ent = rd("A-original", ".ent");
+        for (uint256 i = 47; i < 57; i++) ent[i] = "Z";
+        assertEq(r.bundleIdHash(r.registerBuild(withEnt(ent), rd("A-original", ".page0"), ent)), sha256("dev.dsmack.provider"));
+        ent[76] = "x";
+        bytes32 changed = r.registerBuild(withEnt(ent), rd("A-original", ".page0"), ent);
+        assertEq(r.bundleIdHash(changed), sha256("dev.dsmack.providex"));
+        assertEq(r.bundleIdHash(original), sha256("dev.dsmack.provider"));
+    }
     function test_ownerSetsBuildAndOldBuildsStopResolving() public {
         CDRegistry r = mac();
         bytes32 a = file(r, "A-original");
@@ -97,6 +108,7 @@ contract CDRegistryTest is Test {
         r.setBuild(cd, page0, ent, 2880, 5120);
         assertEq(r.rpIdHash(a), 0);
         assertEq(r.teamIdHash(a), 0);
+        assertEq(r.bundleIdHash(a), 0);
         assertEq(r.rpIdHash(admit(r, cd, page0, ent)), OURS);
     }
     function test_iphoneBuild() public {

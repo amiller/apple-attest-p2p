@@ -105,3 +105,23 @@ Still required: a distributable NFT-enabled Base Sepolia build, a clean second-M
 install, the builder handoff UI, a genuinely different signing team's Level 2 run,
 and screenshots/transcript for that second level. This evidence does not close
 those acceptance gates.
+
+
+## Subsequent upgrade-component validation
+
+The working branch now includes invitation/request UI and a builder guide. A
+signed, read-only Mac test exported the existing participant invitation and
+rejected a wrong network, an unbound assertion, the publisher's team, and an
+invalid new-key signature, leaving account control unchanged. See the
+[validation output](../data/nft-live-20261007/upgrade-validation.txt).
+
+The friend-facing registration helper also ran against the isolated relay.
+Repeating a registration returned the same transaction; a modified code page
+was rejected before spending another sponsor nonce. See
+[registration verification](../data/nft-live-20261007/build-registration-verification.json).
+
+A later contract hardening requires the builder bundle identifier to contain the
+recipient account address. Contract tests reject a build bound to another
+recipient. This new policy requires a fresh deployment; the earlier local NFT
+fixture does not demonstrate that new policy or a successful Level 2 claim.
+The complete second-team acceptance gate remains open.

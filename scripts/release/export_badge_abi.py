@@ -6,7 +6,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
 subprocess.run(['forge', 'build', '--root', str(ROOT / 'contracts'), '-q'], check=True)
-contracts = {'badges': ('ResearchBadges', 'ResearchBadges'),
+contracts = {'registry': ('CDRegistry', 'CDRegistry'), 'badges': ('ResearchBadges', 'ResearchBadges'),
              'factory': ('PersonalBadgeAccount', 'PersonalBadgeAccountFactory'),
              'account': ('PersonalBadgeAccount', 'PersonalBadgeAccount')}
 abi = {key: json.loads((ROOT / f'contracts/out/{source}.sol/{name}.json').read_text())['abi']

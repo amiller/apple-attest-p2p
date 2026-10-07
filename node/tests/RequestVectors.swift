@@ -21,6 +21,11 @@ import Foundation
         } catch DemoError.invalid(_) {}
         let badge=BadgeClaim(recipient:owner,keyId:Data(repeating:0x33,count:32),level:1,parent:0,deadline:1800000000)
         try need(try badge.digest(chainId:84532,badges:registry)==unhex("a6ffae0033cc6a16e1787730640fc275926061e41275b535bd9ff3d5f63b81a8"),"badge claim ABI vector")
+        let roundtrip=try JSONDecoder().decode(Request.self,from:JSONEncoder().encode(request))
+        try need(try roundtrip.words()==request.words(),"request file roundtrip")
+        let malformed=Request(action:3,category:Data(repeating:0x33,count:31),owner:owner,session:Data(repeating:0x44,count:33),nonce:5,deadline:1234567890,scope:Data(repeating:0,count:32),x:word(1),y:word(2),envelope:Data(repeating:0x55,count:32))
+        do {_=try malformed.words();fatalError("misaligned request fields must be rejected")}
+        catch DemoError.invalid(_) {}
         print("Request ABI vectors passed (V1, V2 epoch 0, V2 epoch 7)")
     }
 }

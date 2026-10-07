@@ -133,6 +133,13 @@ export class Relay {
             const data=encodeFunctionData({abi:abi.adapter,functionName:'enroll',args:[toHex(evidence.attStmt.x5c[0]),toHex(evidence.authData),hex(body.clientData,32)]});
             return response({tx:await this.transact(deployment.macAdapter,data)});
         }
+        if(path==='/register-build') {
+            need(deployment.ResearchBadges&&deployment.PersonalBadgeAccountFactory,'NFT builder registration not enabled');
+            const cd=hex(body.cd),page0=hex(body.page0,16384),ent=hex(body.ent);
+            need(cd.length<=32770&&ent.length<=8194,'build registration size');
+            const data=encodeFunctionData({abi:badgeAbi.registry,functionName:'registerBuild',args:[cd,page0,ent]});
+            return response({tx:await this.transact(deployment.macCDRegistry,data)});
+        }
         if(['/personal-account','/badge-claim','/account-handoff'].includes(path)) {
             need(deployment.ResearchBadges&&deployment.PersonalBadgeAccountFactory,'NFT claims not enabled');
             if(path==='/personal-account') {

@@ -39,7 +39,14 @@ release must pin both badge and factory addresses; the current shipped release
 has neither configured. Sponsored account creation requires an additional fresh
 network receipt bound to the proposed public key, factory, chain and member.
 
-The user-facing handoff and Level 2 client remain pending. The handoff will
+The working branch now includes the [developer-upgrade UI](builder-guide.md),
+public invitation/request files, original-key approval, and automatic Level 2
+claims after confirmed handoff. It validates the new app's on-chain assertion
+context and independently signed code identity before exposing the approval
+prompt, then revalidates immediately before signing. Peer work and upgrade
+operations run on one serialized node worker. A request expires or must be
+regenerated if a later assertion supersedes it. The full second-team journey is
+not yet live-validated. The handoff will
 exchange public keys and narrowly bound signatures, never the private key.
 Retain the original app/key until the handoff confirms. There is no sponsor reset
 or recovery backdoor: losing the controlling key before handoff loses control of
@@ -53,7 +60,13 @@ receipt deadline, active member, current code admission, and recipient consent.
 An epoch change invalidates outstanding key-receipt contexts.
 
 Level 1 is limited to one claim per network category/App Attest key. It is not
-one claim per physical Mac, human, or wallet. Level 2 is limited to one claim per
+one claim per physical Mac, human, or wallet. Level 2 also requires a sealed bundle identifier of
+`dev.attestnode.builder.a` followed by the recipient account's lowercase `0x`
+address. A borrowed build for another recipient cannot qualify. The CD registry
+extracts the bundle suffix separately from the App ID prefix, and the NFT contract
+checks its hash against the recipient. This proves team-authorized signing for
+the specific account, not possession of Apple credentials by a particular human.
+Level 2 is limited to one claim per
 verified non-publisher signing team and one upgrade per Level 1 badge. Both
 badges belong to the same recipient and are non-transferable historical receipts.
 These limits are explicit research-demo policy, not evidence of human uniqueness.

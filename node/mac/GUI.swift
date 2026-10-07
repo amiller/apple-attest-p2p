@@ -16,6 +16,7 @@ final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let receiptLabel=NSTextField(wrappingLabelWithString:"No verified key receipt yet")
     private let badgeLabel=NSTextField(wrappingLabelWithString:"Participant NFT: waiting for a connection")
     private let badgeReceiptButton=NSButton(title:"View NFT receipt",target:nil,action:nil)
+    private let upgradeButton=NSButton(title:"Developer upgrade…",target:nil,action:nil)
     private let diagnosticScroll=NSScrollView()
     private let detailsButton=NSButton(title:"Show technical details",target:nil,action:nil)
     private let diagnostics=NSTextView()
@@ -26,11 +27,12 @@ final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
-        window=NSWindow(contentRect:NSRect(x:0,y:0,width:740,height:440),styleMask:[.titled,.closable,.miniaturizable,.resizable],backing:.buffered,defer:false)
+        window=NSWindow(contentRect:NSRect(x:0,y:0,width:740,height:490),styleMask:[.titled,.closable,.miniaturizable,.resizable],backing:.buffered,defer:false)
         window.contentView=StatusContentView(frame:window.contentView!.frame)
         window.title=ReleaseNetwork.name;window.delegate=self;window.isReleasedWhenClosed=false
         titleLabel.font = .systemFont(ofSize:25,weight:.semibold)
         detailLabel.textColor = .secondaryLabelColor
+        upgradeButton.target=self;upgradeButton.action=#selector(developerUpgrade);upgradeButton.isEnabled=false
         receiptLabel.isSelectable=true;badgeLabel.isSelectable=true
         badgeReceiptButton.target=self;badgeReceiptButton.action=#selector(openBadgeReceipt);badgeReceiptButton.isEnabled=false
         if ReleaseNetwork.settings?["badges"] == nil {badgeLabel.stringValue="This preview connects to the network; NFT claims are not enabled."}
@@ -39,7 +41,7 @@ final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let scroll=diagnosticScroll;scroll.isHidden=true;scroll.documentView=diagnostics;scroll.hasVerticalScroller=true
         let caption=NSTextField(labelWithString:"Research testnet • no monetary value • shared key stays in memory")
         caption.font = .systemFont(ofSize:11);caption.textColor = .secondaryLabelColor
-        let stack=NSStackView(views:[titleLabel,detailLabel,receiptLabel,badgeLabel,badgeReceiptButton,caption,detailsButton,scroll])
+        let stack=NSStackView(views:[titleLabel,detailLabel,receiptLabel,badgeLabel,badgeReceiptButton,upgradeButton,caption,detailsButton,scroll])
         stack.orientation = .vertical;stack.alignment = .leading;stack.spacing=18;stack.translatesAutoresizingMaskIntoConstraints=false
         let content=window.contentView!;content.addSubview(stack)
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo:content.leadingAnchor,constant:24),stack.trailingAnchor.constraint(equalTo:content.trailingAnchor,constant:-24),stack.topAnchor.constraint(equalTo:content.topAnchor,constant:24),stack.bottomAnchor.constraint(lessThanOrEqualTo:content.bottomAnchor,constant:-24),scroll.widthAnchor.constraint(equalTo:stack.widthAnchor),scroll.heightAnchor.constraint(greaterThanOrEqualToConstant:160),detailLabel.widthAnchor.constraint(equalTo:stack.widthAnchor),receiptLabel.widthAnchor.constraint(equalTo:stack.widthAnchor),badgeLabel.widthAnchor.constraint(equalTo:stack.widthAnchor)])
@@ -55,6 +57,76 @@ final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
         DispatchQueue.global(qos:.utility).async {self.runParticipant()}
     }
     @objc private func showWindow() {window.makeKeyAndOrderFront(nil);NSApp.activate(ignoringOtherApps:true)}
+    private func runUpgradeOperation<T>(_ work:@escaping (Node)throws->T,done:@escaping (T)->Void) {
+        guard let node else {return}
+        upgradeButton.isEnabled=false
+        node.enqueueOperation {participant in
+            do {
+                let result=try work(participant)
+                DispatchQueue.main.async {self.upgradeButton.isEnabled=true;done(result)}
+            } catch {
+                DispatchQueue.main.async {self.upgradeButton.isEnabled=true;NSAlert(error:error).runModal()}
+            }
+        }
+    }
+    private func saveUpgradeFile<T:Encodable>(_ value:T,name:String,afterSave:@escaping ()->Void = {}) {
+        let panel=NSSavePanel();panel.nameFieldStringValue=name
+        if panel.runModal() == .OK,let url=panel.url {
+            do {let encoder=JSONEncoder();encoder.outputFormatting=[.prettyPrinted,.sortedKeys];try encoder.encode(value).write(to:url,options:.atomic);afterSave()}
+            catch {NSAlert(error:error).runModal()}
+        }
+    }
+    @objc private func developerUpgrade() {
+        let alert=NSAlert();alert.messageText="Earn the independent-builder NFT"
+        alert.informativeText="Save an invitation from this app. Build and sign an admitted copy using your own Apple Developer team, then import the invitation in that copy. Bring its request back here to approve the account handoff. Your private key is never exported."
+        for title in ["Save invitation…","Import upgrade file…","Open build guide","Cancel"] {alert.addButton(withTitle:title)}
+        switch alert.runModal().rawValue {
+        case 1000:
+            runUpgradeOperation({try $0.exportUpgradeInvitation()}) {invitation in
+                self.saveUpgradeFile(invitation,name:"AttestNode-upgrade-invitation.json") {
+                    let notice=NSAlert();notice.messageText="Use this builder bundle identifier"
+                    notice.informativeText="Create an explicit App ID and signing profile for this identifier under your own developer team. It is also saved in the invitation."
+                    let identifier=NSTextField(labelWithString:invitation.bundleId);identifier.isSelectable=true;identifier.frame=NSRect(x:0,y:0,width:580,height:24)
+                    notice.accessoryView=identifier;notice.runModal()
+                }
+            }
+        case 1001:importUpgradeFile()
+        case 1002:
+            NSWorkspace.shared.open(URL(string:"https://github.com/amiller/apple-attest-p2p/blob/release/mac-distribution/release/builder-guide.md")!)
+        default:break
+        }
+    }
+    private func importUpgradeFile() {
+        let panel=NSOpenPanel();panel.canChooseDirectories=false;panel.allowsMultipleSelection=false
+        guard panel.runModal() == .OK,let url=panel.url else {return}
+        do {
+            let size=try url.resourceValues(forKeys:[.fileSizeKey]).fileSize ?? 0
+            try need(size>0 && size<=65536,"Upgrade file must be at most 64 KiB")
+            let data=try Data(contentsOf:url);try need(data.count<=65536,"Upgrade file size")
+            if let request=try? JSONDecoder().decode(UpgradeRequest.self,from:data) {
+                runUpgradeOperation({try $0.validateUpgrade(request)}) {team in
+                    let alert=NSAlert();alert.messageText="Transfer NFT account control to your new app?"
+                    alert.informativeText="The request proves an admitted app under an independent signing team. Confirm that this is the request you created in your own signed copy.\n\nNew key: \(hex(keccak(request.newPoint).prefix(8)))\nTeam proof: \(hex(team.prefix(8)))\n\nThe new copy will control this account and claim the builder NFT. This copy will no longer control it."
+                    alert.addButton(withTitle:"Approve handoff");alert.addButton(withTitle:"Cancel")
+                    if alert.runModal() == .alertFirstButtonReturn {
+                        self.runUpgradeOperation({try $0.approveUpgrade(request)}) {_ in
+                            self.upgradeButton.isEnabled=false
+                            let done=NSAlert();done.messageText="Account handoff confirmed";done.informativeText="Return to your independently signed app. It will claim the builder NFT automatically.";done.runModal()
+                        }
+                    }
+                }
+            } else {
+                let invitation=try JSONDecoder().decode(UpgradeInvitation.self,from:data)
+                runUpgradeOperation({try $0.prepareUpgrade(invitation)}) {request in
+                    self.saveUpgradeFile(request,name:"AttestNode-upgrade-request.json") {
+                        self.runUpgradeOperation({try $0.trackUpgrade(request)}) {_ in
+                            let done=NSAlert();done.messageText="Bring this request to your original app";done.informativeText="Import the request there and approve the handoff. Keep both copies open. New key: \(hex(keccak(request.newPoint).prefix(8)))";done.runModal()
+                        }
+                    }
+                }
+            }
+        } catch {NSAlert(error:error).runModal()}
+    }
     @objc private func toggleDetails() {
         let show=diagnosticScroll.isHidden;diagnosticScroll.isHidden = !show
         detailsButton.title=show ? "Hide technical details":"Show technical details"
@@ -102,7 +174,7 @@ final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let cfg=try Config(config)
             try need(!cfg.peer.isEmpty,"missing faucet peer")
             emit("configured",["network":ReleaseNetwork.name,"chainId":cfg.chainId,"registry":cfg.registry,"participant":cfg.name])
-            let participant=Node(cfg,log:emit);self.node=participant
+            let participant=Node(cfg,log:emit);DispatchQueue.main.async {self.node=participant}
             var delay:Double=2
             while true {
                 do {try participant.participate();return}
@@ -126,10 +198,14 @@ final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self.diagnostics.string=self.eventLines.joined(separator:"\n")
             self.status.merge(fields){_,new in new};self.status["lastEvent"]=event;self.status["updatedAt"]=entry["t"]
             switch event {
+            case "account handed off":self.badgeLabel.stringValue="This account was handed off. Continue in your independently signed copy.";self.upgradeButton.isEnabled=false;self.badgeReceiptButton.isEnabled=false
+            case "upgrade awaiting approval":self.badgeLabel.stringValue="Waiting for your original app to approve the handoff…";self.badgeReceiptButton.isEnabled=false
+            case "upgrade approved":self.badgeLabel.stringValue="Account handoff confirmed. Continue in your independently signed app."
+            case "builder claiming":self.badgeLabel.stringValue="Claiming your independent-builder NFT…"
             case "badge preparing":self.badgeLabel.stringValue="Preparing your personal NFT account…"
             case "badge claiming":self.badgeLabel.stringValue="Claiming your participant NFT…"
             case "badge retrying":self.badgeLabel.stringValue="NFT claim pending; retrying automatically. Your peer remains connected."
-            case "badge claimed":self.badgeReceiptButton.isEnabled=(fields["chainId"] as? NSNumber)?.uint64Value==84532;self.badgeLabel.stringValue="Participant NFT #\(fields["badgeToken"] ?? "") confirmed\nYour account: \(fields["personalAccount"] ?? "")"
+            case "badge claimed":self.upgradeButton.isEnabled=true;self.badgeReceiptButton.isEnabled=(fields["chainId"] as? NSNumber)?.uint64Value==84532;self.badgeLabel.stringValue="\((fields["badgeLevel"] as? NSNumber)?.intValue==2 ? "Independent-builder":"Participant") NFT #\(fields["badgeToken"] ?? "") confirmed\nYour account: \(fields["personalAccount"] ?? "")"
             case "connecting":self.setState("connecting","Connecting to the testnet…","Checking the configured network and relay.")
             case "attesting":self.setState("attesting","Verifying this app…","Checking the signed app and this Mac’s attestation identity.")
             case "getting key":self.setState("getting-key","Getting the shared testnet key…","Waiting for an admitted peer and a verifiable receipt.")

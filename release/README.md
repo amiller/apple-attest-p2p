@@ -80,9 +80,10 @@ an ephemeral hosted runner. It does not run on PR events. Actions are pinned to
 commit IDs. Configure GitHub environment protection before adding secrets.
 
 Changing the signing team does not require changing executable source. Changing
-bundle metadata changes its sealed hash and may require a distinct approved
-baseline under the current registry rules. Successful building/signing does not
-automatically admit a fork to the shared network.
+bundle metadata changes the sealed identity and CDHash. The registry permits
+identity metadata differences when the code and normalized entitlement policy
+still match; the new CDHash must be registered. Successful building/signing does
+not automatically admit a fork to the shared network.
 
 For local signing, use `scripts/release/sign_mac.py --help`. Unlock an existing
 keychain in the same session beforehand. Development mode creates a **private**

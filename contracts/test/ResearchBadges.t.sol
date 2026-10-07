@@ -41,6 +41,7 @@ contract ResearchBadgesTest is Test {
         vm.mockCall(address(adapter),abi.encodeWithSignature("assertionEvidence(bytes32)",KID),abi.encode(network.contextHash(r),CD,RP,uint64(block.timestamp),uint32(1)));
         vm.mockCall(address(adapter),abi.encodeWithSignature("rpIdHash(bytes32)",CD),abi.encode(RP));
         vm.mockCall(address(adapter),abi.encodeWithSignature("teamIdHash(bytes32)",CD),abi.encode(team));
+        vm.mockCall(address(adapter),abi.encodeWithSignature("bundleIdHash(bytes32)",CD),abi.encode(sha256(bytes(badge.builderBundleId(recipient)))));
         vm.mockCall(address(network),abi.encodeCall(network.isActive,(keccak256(abi.encode(category,KID)))),abi.encode(true));
     }
     function participant() internal returns(uint256) {
@@ -153,6 +154,13 @@ contract ResearchBadgesTest is Test {
         assertEq(address(factory.createForMember(x,y,KID,r)),address(account));
         vm.mockCall(address(network),abi.encodeCall(network.isActive,(keccak256(abi.encode(category,KID)))),abi.encode(false));
         vm.expectRevert("inactive member");factory.createForMember(x,y,KID,r);
+    }
+    function test_BorrowedIndependentBuildCannotClaimForAnotherAccount() public {
+        uint256 parent=participant();
+        (ResearchBadges.Claim memory c,DemoV1.Request memory r,bytes memory sig)=prepare(2,parent,FRIEND);
+        vm.mockCall(address(adapter),abi.encodeWithSignature("bundleIdHash(bytes32)",CD),abi.encode(sha256(bytes(badge.builderBundleId(address(999))))));
+        vm.expectRevert("recipient-bound build");badge.claim(c,r,sig);
+        assertFalse(badge.builderTeamClaimed(FRIEND));assertFalse(badge.upgraded(parent));
     }
     function test_NFTCannotTransfer() public {
         uint256 id=participant();vm.prank(recipient);vm.expectRevert("non-transferable");badge.transferFrom(recipient,address(123),id);

@@ -48,7 +48,8 @@ participant or as a provably new physical device.
 2. Follow one concise guide to fork/build the pinned source and sign locally
    with Xcode, or configure the protected GitHub signing workflow. Keep Apple
    credentials in Xcode/Keychain or the user's own CI secrets.
-3. Verify that the unsigned executable matches the published reproducible build.
+3. Use the participant invitation’s account-specific bundle identifier and
+   verify that the unsigned executable matches the published reproducible build.
 4. Register/admit the independently signed copy under the code policy, then run
    it and prove its signing identity through verified attestation.
 5. Link the new installation to the original participant with an authenticated
@@ -57,7 +58,8 @@ participant or as a provably new physical device.
 The first independent-builder demonstration requires a signing team different
 from the release publisher's team. A developer team may represent an organization
 with multiple people. The badge proves a verified independent signing team and
-admitted code, not a unique human. Admission requirements and any manual operator
+admitted code, not a unique human. The signed bundle identifier is bound to the participant
+account, so somebody else’s generic signed download cannot qualify. Admission requirements and any manual operator
 step must be visible in the guide; a successful CI build alone is insufficient.
 
 ## Identity and repeat claims

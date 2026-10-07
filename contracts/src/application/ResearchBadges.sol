@@ -35,6 +35,11 @@ contract ResearchBadges is ERC721, ReentrancyGuard {
         require(configured == address(adapter_) && adapter_.registry() == address(network_), "adapter");
         network = network_;adapter = adapter_;category = category_;publisherTeam = publisherTeam_;
     }
+    /// A generic copy signed by another team cannot claim for arbitrary users.
+    /// The team must sign an explicit app identity bound to this NFT account.
+    function builderBundleId(address recipient) public pure returns(string memory) {
+        return string(abi.encodePacked("dev.attestnode.builder.a",Strings.toHexString(uint160(recipient),20)));
+    }
     function claimDigest(Claim calldata c) public view returns(bytes32) {
         return keccak256(abi.encode("ATTEST_RESEARCH_BADGE_V1",block.chainid,address(this),c));
     }
@@ -58,6 +63,7 @@ contract ResearchBadges is ERC721, ReentrancyGuard {
             participantClaimed[member] = true;
         } else {
             require(team != 0 && team != publisherTeam && !builderTeamClaimed[team], "independent team");
+            require(adapter.cds().bundleIdHash(cdhash) == sha256(bytes(builderBundleId(c.recipient))), "recipient-bound build");
             require(ownerOf(c.parent) == c.recipient && badges[c.parent].level == 1 && !upgraded[c.parent], "parent");
             builderTeamClaimed[team] = true;upgraded[c.parent] = true;
         }

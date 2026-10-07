@@ -48,6 +48,15 @@ final class Node {
     var sessionPublic: Data {session.publicKey.x963Representation}
     var keyID=""; var owner=""; var me=Data(); var held=[Data:P256.Signing.PrivateKey](); var heldEpoch=[Data:UInt64](); var nonces=[String:Data]()
     var badgeParticipation=false;var badgeComplete=false;var nextBadgeAttempt=Date.distantPast
+    private let operationLock=NSLock()
+    private var operations=[(Node)->Void]()
+    func enqueueOperation(_ operation:@escaping (Node)->Void) {
+        operationLock.lock();operations.append(operation);operationLock.unlock()
+    }
+    func runOperations() {
+        operationLock.lock();let pending=operations;operations.removeAll();operationLock.unlock()
+        for operation in pending {operation(self)}
+    }
     private var identityLock: Int32 = -1
     deinit {if identityLock >= 0 {close(identityLock)}}
     func lockIdentity() throws {
@@ -243,6 +252,7 @@ final class Node {
                 try need(identity.enrolled && identity.expires>UInt64(Date().timeIntervalSince1970),"identity renewal required")
                 checkedAt=Date();log("network reachable",[:])
             }
+            runOperations()
             attemptParticipantBadge()
             var message: [String:Any]
             do {message=try receive(timeout:15)}

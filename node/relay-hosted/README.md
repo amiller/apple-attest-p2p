@@ -29,7 +29,10 @@ category. The legacy sponsor-owned token claim remains disabled. When both
 routes sponsor participant-owned badges: `/personal-account` requires a fresh
 admitted receipt bound to the new account key, `/badge-claim` requires the
 recipient's signature and matching network receipt, and `/account-handoff`
-accepts only factory-created accounts with both control-key signatures. Contract
+accepts only factory-created accounts with a participant NFT and both control-key
+signatures. `/register-build` sponsors only the configured registry's normalized
+code-admission check, enabling a friend to register their own signed copy without
+a gas key. Registration is not proof of valid Apple signing. Contract
 validation runs during gas estimation and again on chain. Unknown targets and
 administrator calls are not exposed. The currently deployed release configuration
 has no NFT addresses, so these routes remain disabled there.

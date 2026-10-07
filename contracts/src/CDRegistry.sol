@@ -35,6 +35,7 @@ contract CDRegistry {
     mapping(bytes32 => bytes32) rp;
     mapping(bytes32 => bytes32) buildOf;
     mapping(bytes32 => bytes32) team;
+    mapping(bytes32 => bytes32) bundle;
     function be32(bytes calldata b, uint256 o) internal pure returns (uint256) { return uint32(bytes4(b[o:o + 4])); }
     function maskedHash(bytes memory p, uint256 linkedit, uint256 codeSig) public pure returns (bytes32 h) {
         assembly {
@@ -47,11 +48,11 @@ contract CDRegistry {
     }
     /// Hash of the entitlement shape (identity values blanked) and sha256(application-identifier).
     function entitlements(bytes memory der) public pure returns (bytes32 shape, bytes32 app) {
-        (shape, app,) = entitlementIdentity(der);
+        (shape, app,,) = entitlementIdentity(der);
     }
     /// Identity metadata is sealed by the CDHash, but is not proof of execution.
     /// Consumers must also verify a live Apple assertion for that CDHash/RP pair.
-    function entitlementIdentity(bytes memory der) public pure returns (bytes32 shape, bytes32 app, bytes32 teamHash) {
+    function entitlementIdentity(bytes memory der) public pure returns (bytes32 shape, bytes32 app, bytes32 teamHash, bytes32 bundleHash) {
         StrictDER.Node memory outer = StrictDER.expect(der, 0, der.length, 0x70);
         StrictDER.Node memory version = StrictDER.expect(der, outer.body, outer.end, 0x02);
         require(outer.end == der.length && version.end == version.body + 1 && der[version.body] == 0x01, "entitlements");
@@ -65,7 +66,18 @@ contract CDRegistry {
             bytes32 k = keccak256(StrictDER.contents(der, key));
             if (k == keccak256("application-identifier") || k == keccak256("com.apple.application-identifier")) {
                 require(app == 0 && value.tag == 0x0c, "application-identifier");
-                app = sha256(StrictDER.contents(der, value));
+                bytes memory appIdentifier = StrictDER.contents(der, value);
+                app = sha256(appIdentifier);
+                // App ID prefix may differ from the team ID on legacy accounts.
+                // Bind the bundle suffix without treating the prefix as a team.
+                for (uint256 i; i < appIdentifier.length; i++) {
+                    if (appIdentifier[i] == "." && i > 0 && i + 1 < appIdentifier.length) {
+                        bytes memory suffix = new bytes(appIdentifier.length - i - 1);
+                        for (uint256 j; j < suffix.length; j++) suffix[j] = appIdentifier[i + 1 + j];
+                        bundleHash = sha256(suffix);
+                        break;
+                    }
+                }
                 shape = keccak256(abi.encode(shape, k));
             } else if (k == keccak256("com.apple.developer.team-identifier")) {
                 require(teamHash == 0 && value.tag == 0x0c, "team-identifier");
@@ -116,11 +128,12 @@ contract CDRegistry {
         require(b.entitlements == a.entitlements, "entitlements");
         h = sha256(cd);
         rp[h] = app;
-        (,,team[h]) = entitlementIdentity(ent);
+        (,,team[h],bundle[h]) = entitlementIdentity(ent);
         buildOf[h] = buildId;
     }
     function rpIdHash(bytes32 h) public view returns (bytes32) { return buildOf[h] == buildId ? rp[h] : bytes32(0); }
     /// Zero when absent or no longer admitted under the current approved build.
     function teamIdHash(bytes32 h) public view returns (bytes32) { return rpIdHash(h) != 0 ? team[h] : bytes32(0); }
+    function bundleIdHash(bytes32 h) public view returns (bytes32) { return rpIdHash(h) != 0 ? bundle[h] : bytes32(0); }
     function isAdmitted(bytes32 h) external view returns (bool) { return rpIdHash(h) != 0; }
 }

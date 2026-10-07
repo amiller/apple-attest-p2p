@@ -10,7 +10,7 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCES = ['node/shared/Protocol.swift', 'node/shared/PersonalAccount.swift', 'node/shared/BadgeClaim.swift', 'node/shared/Chain.swift',
+SOURCES = ['node/shared/Protocol.swift', 'node/shared/PersonalAccount.swift', 'node/shared/BadgeClaim.swift', 'node/shared/Upgrade.swift', 'node/shared/Chain.swift',
            'node/shared/Node.swift', 'node/mac/main.swift',
            'node/mac/GUI.swift', 'node/mac/NetworkConfig.swift']
 

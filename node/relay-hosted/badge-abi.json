@@ -1,4 +1,381 @@
 {
+  "registry": [
+    {
+      "type": "function",
+      "name": "approved",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "rest",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "maskedPage0",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "header",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "entitlements",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "codeLimit",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "linkeditCmd",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "codeSigCmd",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "buildId",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "bundleIdHash",
+      "inputs": [
+        {
+          "name": "h",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "entitlementIdentity",
+      "inputs": [
+        {
+          "name": "der",
+          "type": "bytes",
+          "internalType": "bytes"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "shape",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "app",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "teamHash",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "bundleHash",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "stateMutability": "pure"
+    },
+    {
+      "type": "function",
+      "name": "entitlements",
+      "inputs": [
+        {
+          "name": "der",
+          "type": "bytes",
+          "internalType": "bytes"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "shape",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "app",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "stateMutability": "pure"
+    },
+    {
+      "type": "function",
+      "name": "isAdmitted",
+      "inputs": [
+        {
+          "name": "h",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool",
+          "internalType": "bool"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "maskedHash",
+      "inputs": [
+        {
+          "name": "p",
+          "type": "bytes",
+          "internalType": "bytes"
+        },
+        {
+          "name": "linkedit",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "codeSig",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "h",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "stateMutability": "pure"
+    },
+    {
+      "type": "function",
+      "name": "measure",
+      "inputs": [
+        {
+          "name": "cd",
+          "type": "bytes",
+          "internalType": "bytes"
+        },
+        {
+          "name": "page0",
+          "type": "bytes",
+          "internalType": "bytes"
+        },
+        {
+          "name": "ent",
+          "type": "bytes",
+          "internalType": "bytes"
+        },
+        {
+          "name": "linkedit",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "codeSig",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "b",
+          "type": "tuple",
+          "internalType": "struct CDRegistry.Build",
+          "components": [
+            {
+              "name": "rest",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            },
+            {
+              "name": "maskedPage0",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            },
+            {
+              "name": "header",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            },
+            {
+              "name": "entitlements",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            },
+            {
+              "name": "codeLimit",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "linkeditCmd",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "codeSigCmd",
+              "type": "uint256",
+              "internalType": "uint256"
+            }
+          ]
+        },
+        {
+          "name": "app",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "stateMutability": "pure"
+    },
+    {
+      "type": "function",
+      "name": "owner",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "registerBuild",
+      "inputs": [
+        {
+          "name": "cd",
+          "type": "bytes",
+          "internalType": "bytes"
+        },
+        {
+          "name": "page0",
+          "type": "bytes",
+          "internalType": "bytes"
+        },
+        {
+          "name": "ent",
+          "type": "bytes",
+          "internalType": "bytes"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "h",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "rpIdHash",
+      "inputs": [
+        {
+          "name": "h",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "setBuild",
+      "inputs": [
+        {
+          "name": "cd",
+          "type": "bytes",
+          "internalType": "bytes"
+        },
+        {
+          "name": "page0",
+          "type": "bytes",
+          "internalType": "bytes"
+        },
+        {
+          "name": "ent",
+          "type": "bytes",
+          "internalType": "bytes"
+        },
+        {
+          "name": "linkedit",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "codeSig",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "teamIdHash",
+      "inputs": [
+        {
+          "name": "h",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "stateMutability": "view"
+    }
+  ],
   "badges": [
     {
       "type": "constructor",
@@ -109,6 +486,25 @@
         }
       ],
       "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "builderBundleId",
+      "inputs": [
+        {
+          "name": "recipient",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "string",
+          "internalType": "string"
+        }
+      ],
+      "stateMutability": "pure"
     },
     {
       "type": "function",

@@ -22,7 +22,10 @@ func keccak(_ data: Data) -> Data {
     }
     return Data((0..<32).map { UInt8(truncatingIfNeeded:a[$0/8] >> (($0%8)*8)) })
 }
-enum DemoError: Error { case invalid(String) }
+enum DemoError: Error, LocalizedError {
+    case invalid(String)
+    var errorDescription:String? {switch self {case .invalid(let message):return message}}
+}
 func need(_ condition: Bool,_ message: String) throws { if !condition { throw DemoError.invalid(message) } }
 func unhex(_ value: String) throws -> Data {
     let s = value.hasPrefix("0x") ? String(value.dropFirst(2)) : value
@@ -42,10 +45,11 @@ struct RawDigest: Digest {
     func withUnsafeBytes<R>(_ body:(UnsafeRawBufferPointer)throws->R) rethrows -> R { try data.withUnsafeBytes(body) }
     func makeIterator() -> Array<UInt8>.Iterator { Array(data).makeIterator() }
 }
-struct Request {
+struct Request: Codable {
     let action: UInt64;let category: Data;let owner: String;let session: Data
     let nonce: UInt64;let deadline: UInt64;let scope: Data;let x: Data;let y: Data;let envelope: Data
     func words() throws -> Data {
+        try need(action<=3 && [category,session,scope,x,y,envelope].allSatisfy{$0.count==32},"request field widths")
         let ownerWord = try addressWord(owner)
         let parts = [word(action),category,ownerWord,ownerWord,session,word(nonce),word(deadline),scope,x,y,envelope]
         return parts.reduce(Data(),+)
