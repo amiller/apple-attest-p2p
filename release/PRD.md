@@ -17,9 +17,9 @@ value.”
 
 The first experience requires no developer account, terminal commands, wallet
 setup, gas purchase, or network configuration. Download access and the normal
-macOS first-open confirmation are separate from application setup. The current
-private GitHub release requires repository access; the friend handoff must
-provide a working download link and state the supported Mac/OS requirements.
+macOS first-open confirmation are separate from application setup. The [friend handoff](friend-guide.md) provides an unlisted app download without
+GitHub access and states the supported Mac/OS requirements. Source access remains
+private for Level 2.
 
 ## Level 1: participant
 
