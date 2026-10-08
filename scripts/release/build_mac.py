@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import plistlib
+import shutil
 import subprocess
 import tempfile
 
@@ -48,6 +49,12 @@ def main():
     info.update(CFBundleIdentifier=args.bundle_id, CFBundleShortVersionString=args.version,
                 CFBundleVersion=args.build_number)
     (app / 'Contents/Info.plist').write_bytes(plistlib.dumps(info, sort_keys=True))
+    artwork_inputs = ['artwork/fold/token-1.png', 'artwork/fold/gabe-token-2.png'] if args.gui else []
+    if args.gui:
+        resources = app / 'Contents/Resources'
+        resources.mkdir()
+        for number, source in enumerate(artwork_inputs, 1):
+            shutil.copyfile(ROOT / source, resources / f'fold-token-{number}.png')
     sdk = output('xcrun', '--sdk', 'macosx', '--show-sdk-path')
     # Stable module name, relative source names and path remapping. No debug data,
     # provisioning profile or developer signature belongs in this comparison.
@@ -62,7 +69,7 @@ def main():
                         *flags, *SOURCES, '-o', str(executable)], cwd=ROOT, check=True,
                        env={**os.environ, 'LC_ALL': 'C', 'TZ': 'UTC'})
     tracked_inputs = SOURCES + ['node/mac/Info.plist', 'scripts/release/build_mac.py',
-                               'release/toolchain.json']
+                               'release/toolchain.json'] + artwork_inputs
     record = {'schema': 1, 'kind': 'unsigned-build', 'flavor': 'gui' if args.gui else 'cli', 'toolchain': actual,
               'source_commit': output('git', 'rev-parse', 'HEAD'),
               'dirty_build_inputs': bool(output('git', 'status', '--porcelain', '--untracked-files=normal', '--', *tracked_inputs)),

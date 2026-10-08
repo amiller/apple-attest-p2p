@@ -1,24 +1,79 @@
 #if GUI
 import AppKit
 
+private enum AssemblyPalette {
+    static let paper=NSColor(calibratedRed:0.96,green:0.95,blue:0.91,alpha:1)
+    static let ink=NSColor(calibratedRed:0.08,green:0.08,blue:0.08,alpha:1)
+    static let red=NSColor(calibratedRed:0.90,green:0.20,blue:0.10,alpha:1)
+    static let blue=NSColor(calibratedRed:0.15,green:0.25,blue:0.82,alpha:1)
+}
 final class StatusContentView: NSView {
     override var isOpaque:Bool {true}
+    override func draw(_ dirtyRect:NSRect) {AssemblyPalette.paper.setFill();dirtyRect.fill()}
+}
+final class FoldStageView: NSView {
+    var image:NSImage? {didSet {needsDisplay=true}}
+    var token:String? {didSet {needsDisplay=true}}
+    override var isOpaque:Bool {true}
     override func draw(_ dirtyRect:NSRect) {
-        NSColor.windowBackgroundColor.setFill();dirtyRect.fill()
+        AssemblyPalette.blue.setFill();bounds.fill()
+        let inset:CGFloat=26
+        if let image {
+            let side=min(bounds.width-32,bounds.height-150)
+            image.draw(in:NSRect(x:(bounds.width-side)/2,y:(bounds.height-side)/2,width:side,height:side),from:.zero,operation:.sourceOver,fraction:1)
+        } else {
+            let center=NSPoint(x:bounds.midX,y:bounds.midY)
+            let radius=min(bounds.width,bounds.height)*0.28
+            for i in 0..<5 {
+                let path=NSBezierPath();let angle=CGFloat(i)*0.42
+                path.move(to:NSPoint(x:center.x-radius+CGFloat(i)*18,y:center.y-radius))
+                path.line(to:NSPoint(x:center.x+radius*cos(angle),y:center.y+radius))
+                path.line(to:NSPoint(x:center.x+radius,y:center.y-radius+CGFloat(i)*22))
+                path.lineWidth=14
+                (i % 2 == 0 ? AssemblyPalette.paper:AssemblyPalette.red).setStroke();path.stroke()
+            }
+        }
+        let label=image == nil ? (token == nil ? "ASSEMBLY / ATTESTNODE":"YOUR RECEIPT / "+token!):"YOUR FOLD / "+(token ?? "")
+        (label as NSString).draw(at:NSPoint(x:inset,y:bounds.height-48),withAttributes:[.font:NSFont.monospacedSystemFont(ofSize:13,weight:.bold),.foregroundColor:AssemblyPalette.paper])
+        let footer=image == nil ? (token == nil ? "VERIFY. CONNECT. PARTICIPATE.":"ARTWORK NOT LOADED"):"PORCELAIN / VERMILION"
+        (footer as NSString).draw(at:NSPoint(x:inset,y:24),withAttributes:[.font:NSFont.monospacedSystemFont(ofSize:11,weight:.medium),.foregroundColor:AssemblyPalette.paper])
+    }
+}
+
+final class AssemblyButton: NSButton {
+    var primary=false
+    override var intrinsicContentSize:NSSize {NSSize(width:super.intrinsicContentSize.width+24,height:44)}
+    override func draw(_ dirtyRect:NSRect) {
+        let shape=NSBezierPath(roundedRect:bounds.insetBy(dx:1,dy:1),xRadius:5,yRadius:5)
+        let foreground=isEnabled ? (primary ? NSColor.white:AssemblyPalette.ink):NSColor.secondaryLabelColor
+        (primary && isEnabled ? AssemblyPalette.ink:AssemblyPalette.paper).setFill();shape.fill()
+        (isEnabled ? AssemblyPalette.ink:NSColor.tertiaryLabelColor).setStroke();shape.lineWidth=1;shape.stroke()
+        if isHighlighted {NSColor(calibratedWhite:0.5,alpha:0.16).setFill();shape.fill()}
+        let attributes:[NSAttributedString.Key:Any]=[.font:font ?? NSFont.systemFont(ofSize:14,weight:.semibold),.foregroundColor:foreground]
+        let size=(title as NSString).size(withAttributes:attributes)
+        (title as NSString).draw(at:NSPoint(x:(bounds.width-size.width)/2,y:(bounds.height-size.height)/2),withAttributes:attributes)
+        if window?.firstResponder === self {
+            AssemblyPalette.blue.setStroke();let focus=NSBezierPath(roundedRect:bounds.insetBy(dx:3,dy:3),xRadius:3,yRadius:3)
+            focus.lineWidth=2;focus.stroke()
+        }
     }
 }
 
 final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var window: NSWindow!
+    private let foldStage=FoldStageView()
+    private let stateLabel=NSTextField(labelWithString:"01 / CONNECTING")
+    private let participationCaption=NSTextField(wrappingLabelWithString:"RESEARCH TESTNET / NO MONETARY VALUE\nStarting automatically. Keep the app open to connect.")
     private var menuItem: NSStatusItem!
-    private let titleLabel=NSTextField(labelWithString:"Connecting to the testnet…")
+    private let titleLabel=NSTextField(wrappingLabelWithString:"Connecting.")
     private let detailLabel=NSTextField(wrappingLabelWithString:"Starting automatically. You can close this window and keep participating from the menu bar.")
     private let receiptLabel=NSTextField(wrappingLabelWithString:"No verified key receipt yet")
     private let badgeLabel=NSTextField(wrappingLabelWithString:"Participant NFT: waiting for a connection")
-    private let badgeReceiptButton=NSButton(title:"View NFT receipt",target:nil,action:nil)
-    private let upgradeButton=NSButton(title:"Developer upgrade…",target:nil,action:nil)
+    private let badgeReceiptButton=AssemblyButton(title:"View your NFT ↗",target:nil,action:nil)
+    private let upgradeButton=AssemblyButton(title:"Become an independent builder…",target:nil,action:nil)
     private let diagnosticScroll=NSScrollView()
-    private let detailsButton=NSButton(title:"Show technical details",target:nil,action:nil)
+    private let shareReportButton=AssemblyButton(title:"Save diagnostic report…",target:nil,action:nil)
+    private let detailsButton=AssemblyButton(title:"Show technical details",target:nil,action:nil)
     private let diagnostics=NSTextView()
     private var status=[String:Any]()
     private var eventLines=[String]()
@@ -27,24 +82,46 @@ final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
-        window=NSWindow(contentRect:NSRect(x:0,y:0,width:740,height:490),styleMask:[.titled,.closable,.miniaturizable,.resizable],backing:.buffered,defer:false)
+        window=NSWindow(contentRect:NSRect(x:0,y:0,width:1100,height:700),styleMask:[.titled,.closable,.miniaturizable,.resizable],backing:.buffered,defer:false)
+        window.minSize=NSSize(width:1000,height:680)
         window.contentView=StatusContentView(frame:window.contentView!.frame)
-        window.title=ReleaseNetwork.name;window.delegate=self;window.isReleasedWhenClosed=false
-        titleLabel.font = .systemFont(ofSize:25,weight:.semibold)
-        detailLabel.textColor = .secondaryLabelColor
+        window.title="AttestNode / Assembly";window.delegate=self;window.isReleasedWhenClosed=false
+        window.appearance=NSAppearance(named:.aqua)
+        titleLabel.font = .systemFont(ofSize:48,weight:.heavy);titleLabel.maximumNumberOfLines=3
+        titleLabel.lineBreakMode = .byWordWrapping;titleLabel.textColor=AssemblyPalette.ink
+        detailLabel.font = .systemFont(ofSize:16);detailLabel.textColor=AssemblyPalette.ink
+        stateLabel.font = .monospacedSystemFont(ofSize:12,weight:.bold);stateLabel.textColor=AssemblyPalette.blue
+        receiptLabel.font = .systemFont(ofSize:12,weight:.medium);receiptLabel.textColor = .secondaryLabelColor
+        badgeLabel.font = .systemFont(ofSize:17,weight:.semibold);badgeLabel.textColor=AssemblyPalette.ink
         upgradeButton.target=self;upgradeButton.action=#selector(developerUpgrade);upgradeButton.isEnabled=false
         receiptLabel.isSelectable=true;badgeLabel.isSelectable=true
         badgeReceiptButton.target=self;badgeReceiptButton.action=#selector(openBadgeReceipt);badgeReceiptButton.isEnabled=false
-        if ReleaseNetwork.settings?["badges"] == nil {badgeLabel.stringValue="This preview connects to the network; NFT claims are not enabled."}
+        for button in [badgeReceiptButton,upgradeButton,detailsButton,shareReportButton] {
+            button.bezelStyle = .regularSquare;button.isBordered=false;button.controlSize = .large
+            button.font = .systemFont(ofSize:14,weight:.semibold)
+        }
+        badgeReceiptButton.primary=true
+        if ReleaseNetwork.settings?["badges"] == nil {badgeLabel.stringValue="NFT claims are not enabled in this preview."}
         diagnostics.isEditable=false;diagnostics.font = .monospacedSystemFont(ofSize:11,weight:.regular)
         detailsButton.target=self;detailsButton.action=#selector(toggleDetails)
+        shareReportButton.target=self;shareReportButton.action=#selector(saveDiagnosticReport)
         let scroll=diagnosticScroll;scroll.isHidden=true;scroll.documentView=diagnostics;scroll.hasVerticalScroller=true
-        let caption=NSTextField(labelWithString:"Research testnet • no monetary value • shared key stays in memory")
+        let caption=participationCaption
         caption.font = .systemFont(ofSize:11);caption.textColor = .secondaryLabelColor
-        let stack=NSStackView(views:[titleLabel,detailLabel,receiptLabel,badgeLabel,badgeReceiptButton,upgradeButton,caption,detailsButton,scroll])
-        stack.orientation = .vertical;stack.alignment = .leading;stack.spacing=18;stack.translatesAutoresizingMaskIntoConstraints=false
-        let content=window.contentView!;content.addSubview(stack)
-        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo:content.leadingAnchor,constant:24),stack.trailingAnchor.constraint(equalTo:content.trailingAnchor,constant:-24),stack.topAnchor.constraint(equalTo:content.topAnchor,constant:24),stack.bottomAnchor.constraint(lessThanOrEqualTo:content.bottomAnchor,constant:-24),scroll.widthAnchor.constraint(equalTo:stack.widthAnchor),scroll.heightAnchor.constraint(greaterThanOrEqualToConstant:160),detailLabel.widthAnchor.constraint(equalTo:stack.widthAnchor),receiptLabel.widthAnchor.constraint(equalTo:stack.widthAnchor),badgeLabel.widthAnchor.constraint(equalTo:stack.widthAnchor)])
+        let stack=NSStackView(views:[stateLabel,titleLabel,detailLabel,receiptLabel,badgeLabel,badgeReceiptButton,upgradeButton,caption,detailsButton,shareReportButton])
+        stack.orientation = .vertical;stack.alignment = .leading;stack.spacing=16;stack.translatesAutoresizingMaskIntoConstraints=false
+        let content=window.contentView!;content.addSubview(foldStage);content.addSubview(stack);content.addSubview(scroll)
+        foldStage.translatesAutoresizingMaskIntoConstraints=false;scroll.translatesAutoresizingMaskIntoConstraints=false
+        NSLayoutConstraint.activate([
+            foldStage.leadingAnchor.constraint(equalTo:content.leadingAnchor),foldStage.topAnchor.constraint(equalTo:content.topAnchor),
+            foldStage.bottomAnchor.constraint(equalTo:content.bottomAnchor),foldStage.widthAnchor.constraint(equalTo:content.widthAnchor,multiplier:0.44),
+            stack.leadingAnchor.constraint(equalTo:foldStage.trailingAnchor,constant:42),stack.trailingAnchor.constraint(equalTo:content.trailingAnchor,constant:-42),
+            stack.topAnchor.constraint(equalTo:content.topAnchor,constant:42),stack.bottomAnchor.constraint(lessThanOrEqualTo:content.bottomAnchor,constant:-30),
+            scroll.leadingAnchor.constraint(equalTo:stack.leadingAnchor),scroll.trailingAnchor.constraint(equalTo:stack.trailingAnchor),
+            scroll.topAnchor.constraint(equalTo:stack.bottomAnchor,constant:16),scroll.heightAnchor.constraint(equalToConstant:160),
+            titleLabel.widthAnchor.constraint(equalTo:stack.widthAnchor),detailLabel.widthAnchor.constraint(equalTo:stack.widthAnchor),
+            receiptLabel.widthAnchor.constraint(equalTo:stack.widthAnchor),badgeLabel.widthAnchor.constraint(equalTo:stack.widthAnchor),caption.widthAnchor.constraint(equalTo:stack.widthAnchor)
+        ])
         let menu=NSMenu()
         menu.addItem(withTitle:"Show testnet status",action:#selector(showWindow),keyEquivalent:"").target=self
         menu.addItem(withTitle:"Save status image…",action:#selector(saveStatusImage),keyEquivalent:"").target=self
@@ -54,7 +131,56 @@ final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
         menuItem.button?.title="◌ Testnet";menuItem.menu=menu
         let mainMenu=NSMenu();let appItem=NSMenuItem();mainMenu.addItem(appItem);appItem.submenu=menu.copy() as? NSMenu;NSApp.mainMenu=mainMenu
         window.center();showWindow()
+        #if ASSEMBLY_PREVIEW
+        if startAssemblyPreview(self) {return}
+        #endif
+        #if ASSEMBLY_CAPTURE
+        startAssemblyCapture(self)
+        #endif
         DispatchQueue.global(qos:.utility).async {self.runParticipant()}
+    }
+    #if ASSEMBLY_PREVIEW || ASSEMBLY_CAPTURE
+    func previewCapture(to url:URL) throws {try captureStatus(to:url)}
+    func previewCaptureWindows(to directory:URL) throws {
+        try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
+        for (index,visibleWindow) in NSApp.windows.filter({$0.isVisible}).enumerated() {
+            guard let content=visibleWindow.contentView else {continue}
+            content.layoutSubtreeIfNeeded();visibleWindow.displayIfNeeded()
+            guard let bitmap=content.bitmapImageRepForCachingDisplay(in:content.bounds) else {continue}
+            content.cacheDisplay(in:content.bounds,to:bitmap)
+            if let png=bitmap.representation(using:.png,properties:[:]) {
+                try png.write(to:directory.appendingPathComponent("window-\(index).png"),options:.atomic)
+            }
+        }
+    }
+    #endif
+    #if ASSEMBLY_PREVIEW
+    func previewEvent(_ event:String,_ fields:[String:Any]) {emit(event,fields)}
+    func previewMark() {
+        window.title="SIMULATED JOURNEY / AttestNode Assembly"
+        stateLabel.stringValue="SIMULATION / "+stateLabel.stringValue.replacingOccurrences(of:"SIMULATION / ",with:"")
+    }
+    #endif
+    private func diagnosticReport()->String {
+        // RPC endpoints may contain credentials in developer configurations.
+        // Share the endpoint origin, never its user info, path, query or fragment.
+        eventLines.map {line in
+            guard let data=line.data(using:.utf8),var entry=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any] else {return ""}
+            if let rpc=entry["rpc"] as? String,let url=URLComponents(string:rpc) {
+                var origin=URLComponents();origin.scheme=url.scheme;origin.host=url.host;origin.port=url.port
+                entry["rpc"]=origin.string ?? "[endpoint omitted]"
+            }
+            guard let encoded=try? JSONSerialization.data(withJSONObject:entry,options:[.sortedKeys]) else {return ""}
+            return String(decoding:encoded,as:UTF8.self)
+        }.joined(separator:"\n")+"\n"
+    }
+    @objc private func saveDiagnosticReport() {
+        let panel=NSSavePanel();panel.nameFieldStringValue="AttestNode-diagnostics.jsonl"
+        panel.message="Review this report before sharing. It includes public account identifiers and recent events; no private keys."
+        if panel.runModal() == .OK,let url=panel.url {
+            do {try diagnosticReport().write(to:url,atomically:true,encoding:.utf8)}
+            catch {NSAlert(error:error).runModal()}
+        }
     }
     @objc private func showWindow() {window.makeKeyAndOrderFront(nil);NSApp.activate(ignoringOtherApps:true)}
     private func runUpgradeOperation<T>(_ work:@escaping (Node)throws->T,done:@escaping (T)->Void) {
@@ -92,7 +218,7 @@ final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         case 1001:importUpgradeFile()
         case 1002:
-            NSWorkspace.shared.open(URL(string:"https://github.com/amiller/apple-attest-p2p/blob/release/mac-distribution/release/builder-guide.md")!)
+            NSWorkspace.shared.open(URL(string:"https://github.com/amiller/apple-attest-p2p/blob/main/release/builder-guide.md")!)
         default:break
         }
     }
@@ -148,9 +274,26 @@ final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
     @objc private func openBadgeReceipt() {
-        guard let contract=status["badgeContract"] as? String,let token=status["badgeToken"],
-              (status["chainId"] as? NSNumber)?.uint64Value==84532,let url=URL(string:"https://sepolia.basescan.org/token/\(contract)?a=\(token)") else {return}
+        guard let receiptContract=status["badgeContract"] as? String,let token=status["badgeToken"],
+              (status["chainId"] as? NSNumber)?.uint64Value==84532,let url=URL(string:"https://sepolia.basescan.org/token/\(artworkContract(receiptContract, token:token))?a=\(token)") else {return}
         NSWorkspace.shared.open(url)
+    }
+    private func artworkContract(_ receipt:String,token:Any)->String {
+        // Only these original receipts have verified, published artwork reissues.
+        if receipt.lowercased()=="0x6ac5fb83f5bf615842b5a9a6c50b8011fab50c3b",["1","2"].contains(String(describing:token)) {
+            return "0xc3da5f4d5013dD6fB4a16EF3ace0C0F9e1F8C1Ed"
+        }
+        return receipt
+    }
+    private func showVerifiedArtwork() {
+        foldStage.image=nil;foldStage.token=status["badgeToken"].map {String(describing:$0)}
+        guard (status["chainId"] as? NSNumber)?.uint64Value==84532,
+              (status["badgeContract"] as? String)?.lowercased()=="0x6ac5fb83f5bf615842b5a9a6c50b8011fab50c3b",
+              let token=status["badgeToken"] else {return}
+        let number=String(describing:token)
+        guard ["1","2"].contains(number),let url=Bundle.main.url(forResource:"fold-token-"+number,withExtension:"png"),let image=NSImage(contentsOf:url) else {return}
+        foldStage.image=image;foldStage.token=String(format:"%03d",Int(number) ?? 0)
+        titleLabel.stringValue="Your Fold.\n"+String(format:"%03d",Int(number) ?? 0)
     }
     @objc private func quit() {NSApp.terminate(nil)}
     func applicationShouldTerminateAfterLastWindowClosed(_ sender:NSApplication)->Bool {false}
@@ -205,22 +348,27 @@ final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
             case "badge preparing":self.badgeLabel.stringValue="Preparing your personal NFT account…"
             case "badge claiming":self.badgeLabel.stringValue="Claiming your participant NFT…"
             case "badge retrying":self.badgeLabel.stringValue="NFT claim pending; retrying automatically. Your peer remains connected."
-            case "badge claimed":self.upgradeButton.isEnabled=true;self.badgeReceiptButton.isEnabled=(fields["chainId"] as? NSNumber)?.uint64Value==84532;self.badgeLabel.stringValue="\((fields["badgeLevel"] as? NSNumber)?.intValue==2 ? "Independent-builder":"Participant") NFT #\(fields["badgeToken"] ?? "") confirmed\nYour account: \(fields["personalAccount"] ?? "")"
-            case "connecting":self.setState("connecting","Connecting to the testnet…","Checking the configured network and relay.")
-            case "attesting":self.setState("attesting","Verifying this app…","Checking the signed app and this Mac’s attestation identity.")
-            case "getting key":self.setState("getting-key","Getting the shared testnet key…","Waiting for an admitted peer and a verifiable receipt.")
+            case "badge claimed":self.upgradeButton.isEnabled=true;self.badgeReceiptButton.isEnabled=(fields["chainId"] as? NSNumber)?.uint64Value==84532;self.badgeLabel.stringValue="\((fields["badgeLevel"] as? NSNumber)?.intValue==2 ? "Independent builder":"Participant") / #\(fields["badgeToken"] ?? "") confirmed";self.showVerifiedArtwork()
+            case "connecting":self.setState("connecting","Connecting.","Checking the configured network and relay.")
+            case "attesting":self.setState("attesting","Verify the app.","Checking the signed app and this Mac’s attestation identity.")
+            case "getting key":self.setState("getting-key","Finding a peer.","Waiting for an admitted peer and a verifiable receipt.")
             case "key verified":
                 self.receiptLabel.stringValue="Shared testnet key verified · epoch \(fields["keyEpoch"] ?? 0)"
-            case "participating":self.setState("active","You’re connected","The shared key is verified. This Mac is available to admitted peers; closing the window keeps it running.")
+            case "participating":self.setState("active","You’re in.","Your shared testnet key is verified. This Mac is participating in the network.");self.showVerifiedArtwork()
             case "peer holds group key":
                 if let peer=fields["peer"] as? String {self.peerNames.insert(peer)}
                 self.status["verifiedPeersThisSession"]=self.peerNames.count
             case "retrying":self.setState("retrying","Connection interrupted; retrying…","Retrying in \(fields["retryAfterSeconds"] ?? 0) seconds. Details are below.")
             case "configuration unavailable":self.setState("unconfigured","Release network not configured",fields["message"] as? String ?? "")
-            case "stopped":self.setState("stopped","Participation stopped",fields["error"] as? String ?? "")
+            case "stopped":self.setState("stopped","Couldn’t connect.","The connection attempt stopped. Save a diagnostic report for help; technical details contain the exact error.")
             default:break
             }
+            #if !ASSEMBLY_PREVIEW
             self.writeStatus()
+            #endif
+            #if ASSEMBLY_CAPTURE
+            assemblyCaptureEvent(event,app:self)
+            #endif
             // Explicit agent invocation captures the same AppKit view as the menu
             // action, after a confirmed claim. No whole-desktop permission needed.
             let args=CommandLine.arguments
@@ -232,6 +380,9 @@ final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     private func setState(_ state:String,_ title:String,_ detail:String) {
         status["state"]=state;titleLabel.stringValue=title;detailLabel.stringValue=detail
+        stateLabel.stringValue=state == "active" ? "● CONNECTED / PEER ACTIVE":state.uppercased().replacingOccurrences(of:"-",with:" ")
+        stateLabel.textColor=["stopped","retrying","unconfigured"].contains(state) ? AssemblyPalette.red:AssemblyPalette.blue
+        participationCaption.stringValue="RESEARCH TESTNET / NO MONETARY VALUE\n"+(state == "active" ? "Closing this window keeps your peer running. Quit stops it.":"Keep the app open while connecting. Quit stops this session.")
         menuItem.button?.title=state=="active" ? "● Testnet":"◌ Testnet"
     }
     private func writeStatus() {
