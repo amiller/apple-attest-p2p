@@ -27,7 +27,7 @@ contract ResearchBadgesTest is Test {
     bytes32 constant FRIEND = bytes32(uint256(11));
     uint256 constant RECIPIENT_KEY = 12345;
     address recipient;
-    function setUp() public {
+    function setUp() public virtual {
         recipient=vm.addr(RECIPIENT_KEY);network=new DemoV2(address(this));
         adapter=new BadgePolicyAdapter(address(network));
         category=network.addCategory(bytes32(uint256(1)),bytes32(uint256(2)),address(adapter),true);
