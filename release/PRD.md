@@ -194,3 +194,22 @@ Apple attestation. The simulator refuses this export, and the actual iPhone
 export still needs verification. For an error, use Share diagnostic report and
 send the copied text once; do not ask a friend to reset identities or run a
 sequence of terminal diagnostics. See [current TestFlight steps](testflight-review.md).
+
+
+## Selected NFT art direction: Fold
+
+The selected direction is a single porcelain sculpture with a vermilion-glazed
+interior, broad folded surfaces and restrained studio lighting. The NFT image
+should work as a small thumbnail and reward a larger view. The earlier garden
+scene is not the chosen art direction.
+
+The [Fold prototype](../artwork/fold/README.md) generates geometry from public
+chain/contract/token identity, keeping art stable across restarts and ownership
+checks. It includes the renderer, local reproducibility checks and an initial
+render for Gabe's participant token 2. It is a visual prototype, not approved
+final art, a live app integration or a change to deployed NFT metadata.
+
+The remaining design work includes the Level 2 relationship to its parent art
+and the explicit path for displaying artwork in wallets without misrepresenting
+or replacing existing historical receipts. Artistic variation does not indicate
+trust, rarity, uptime, a unique human or a permanently unique physical device.
