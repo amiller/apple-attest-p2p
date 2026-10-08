@@ -162,15 +162,42 @@ final class ParticipantApp: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     #endif
     private func diagnosticReport()->String {
-        // RPC endpoints may contain credentials in developer configurations.
-        // Share the endpoint origin, never its user info, path, query or fragment.
-        eventLines.map {line in
-            guard let data=line.data(using:.utf8),var entry=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any] else {return ""}
+        let entries=eventLines.compactMap {line -> [String:Any]? in
+            guard let data=line.data(using:.utf8) else {return nil}
+            return (try? JSONSerialization.jsonObject(with:data)) as? [String:Any]
+        }
+        var replacements=[String:String]()
+        func sensitive(_ name:String)->Bool {
+            let key=name.lowercased().replacingOccurrences(of:"_",with:"").replacingOccurrences(of:"-",with:"")
+            return key.contains("privatekey") || key.contains("password") || key.contains("secret") || ["mnemonic","seed","seedphrase"].contains(key)
+        }
+        func collect(_ value:Any) {
+            if let dict=value as? [String:Any] {
+                for (key,value) in dict {
+                    if sensitive(key),let text=value as? String,!text.isEmpty {replacements[text]="[redacted]"}
+                    collect(value)
+                }
+            } else if let array=value as? [Any] {array.forEach(collect)}
+        }
+        for entry in entries {
+            collect(entry)
+            // An RPC failure can echo its credential-bearing URL or path.
             if let rpc=entry["rpc"] as? String,let url=URLComponents(string:rpc) {
                 var origin=URLComponents();origin.scheme=url.scheme;origin.host=url.host;origin.port=url.port
-                entry["rpc"]=origin.string ?? "[endpoint omitted]"
+                replacements[rpc]=origin.string ?? "[endpoint omitted]"
+                let privateParts=[url.user,url.password,url.path == "/" ? nil:url.path]+(url.queryItems ?? []).map {$0.value}
+                for part in privateParts.compactMap({$0}) where !part.isEmpty {replacements[part]="[redacted]"}
             }
-            guard let encoded=try? JSONSerialization.data(withJSONObject:entry,options:[.sortedKeys]) else {return ""}
+        }
+        let ordered=replacements.keys.sorted {$0.count>$1.count}
+        func redact(_ value:Any)->Any {
+            if let text=value as? String {return ordered.reduce(text) {$0.replacingOccurrences(of:$1,with:replacements[$1]!)}}
+            if let dict=value as? [String:Any] {return dict.mapValues(redact).filter {!sensitive($0.key)}}
+            if let array=value as? [Any] {return array.map(redact)}
+            return value
+        }
+        return entries.compactMap {entry in
+            guard let encoded=try? JSONSerialization.data(withJSONObject:redact(entry),options:[.sortedKeys]) else {return nil}
             return String(decoding:encoded,as:UTF8.self)
         }.joined(separator:"\n")+"\n"
     }

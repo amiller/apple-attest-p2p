@@ -16,7 +16,11 @@
     "previewCaptureWindows"
   ],
   "bundled_art_matches_input_hashes": true,
-  "executable_sha256": "8075232dd7826101f6cb03bfe4cc9f14fa4d65c0e199b36d0e1d12143e053b0c",
+  "executable_sha256": "d878441c7401a4cf86db1dc67ecedf3219738348269d19859634c7ca89d9ec15",
   "scope": "Build-only verification of canonical production settings. No admission or App Attest attempt.",
-  "test_only_status_guard_leaves_ordinary_binary_identical": true
+  "diagnostic_redaction_fix_included": true,
+  "earlier_test_only_guard_check": {
+    "binary_unchanged": true,
+    "executable_sha256": "8075232dd7826101f6cb03bfe4cc9f14fa4d65c0e199b36d0e1d12143e053b0c"
+  }
 }
