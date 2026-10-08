@@ -1,5 +1,14 @@
 # Acceptance audit — 7 October 2026
 
+Current release update: RC3 is now admitted, signed and notarized. The exact ZIP
+reconnected on Base Sepolia and preserved the original App Attest keys, personal
+account and NFT through restart; both existing NFT owners stayed unchanged.
+The persistent seed serves epoch 1. RC2 is no longer admitted. See
+[RC3 verification](v0.1.0-rc.3.json) and [current friend guide](friend-guide.md).
+The detailed table below retains the earlier friend/RC2 evidence; the clean
+second-Mac and independent-team gaps remain open.
+
+
 The goal is **not complete**. Gabe has now reported successful Mac participation
 after enabling Full Security and backing up the pending enrollment state. The
 user supplied a token-2 explorer link; `friend-level1-receipt.json` now verifies

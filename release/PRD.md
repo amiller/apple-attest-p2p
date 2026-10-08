@@ -1,13 +1,15 @@
 # Join the testnet, then become an independent builder
 
-Status: RC2 prerelease, 7 October 2026. The signed, notarized Mac app has joined
-the Base Sepolia network, claimed a participant-owned NFT automatically, and
-restored that NFT after reopening the release ZIP. The recorded agent run used two
-processes on one Mac. Gabe subsequently reported successful participation, and
-his NFT 2 mint/ownership were independently verified. A clean second-Mac
-installation/restart capture and the independent-team Level 2 journey remain
-unverified. See the [screenshot and transcript](agent-transcript-nft-base.md)
-and [friend guide](friend-guide.md).
+Status: RC3 Assembly prerelease, 7 October 2026. The exact signed/notarized Mac
+ZIP is admitted on the live Base Sepolia network and has restored the operator’s
+existing account/NFT after restart. The persistent seed serves the current epoch.
+The release preserves the original account policy and both existing NFT owners.
+RC2 users need the new app. See [release verification](v0.1.0-rc.3.json) and the
+[friend guide](friend-guide.md).
+
+A clean second-Mac installation/restart capture and real independent-team Level 2
+acceptance remain unverified. New participants receive a receipt first; automatic
+artwork publication for subsequent receipts remains pending.
 
 ## The story to send a friend
 
@@ -21,17 +23,16 @@ Supported Macs need Apple silicon, macOS 27, Full Security, and SIP enabled;
 see the [friend guide](friend-guide.md) for requirements and the failure-report path.
 The first experience requires no developer account, terminal commands, wallet
 setup, gas purchase, or network configuration. Download access and the normal
-macOS first-open confirmation are separate from application setup. The [friend handoff](friend-guide.md) provides an unlisted app download without
-GitHub access and states the supported Mac/OS requirements. The
+macOS first-open confirmation are separate from application setup. The [friend handoff](friend-guide.md) provides a public release download without
+a GitHub account and states the supported Mac/OS requirements. The
 [repository and release](https://github.com/amiller/apple-attest-p2p) are now public
 for direct downloads and Level 2 forks.
 
 ## Level 1: participant
 
 1. Download, extract, and open the signed, notarized app.
-2. See “Connecting to the testnet”, followed by “Verifying this app” and
-   “Getting the shared testnet key”. Progress describes verified events.
-3. See “You’re connected”, a verified key receipt, and the participant NFT after
+2. See “Connecting.”, followed by “Verify the app.” and “Finding a peer.” Progress describes verified events.
+3. See “You’re in.” (or “Your Fold.” for a known bundled receipt), a verified key receipt, and the participant NFT after
    its claim transaction confirms. Claiming is automatic and sponsored.
 4. Open the NFT receipt to inspect its network, contract, token, recipient, and
    transaction. The receipt explains what was proven.
@@ -50,7 +51,7 @@ or as a provably new physical device.
 
 ## Level 2: independent builder
 
-1. From the connected app, choose “Run with your own Apple Developer team”.
+1. From the connected app, choose “Become an independent builder…”.
 2. Follow one concise guide to fork/build the pinned source and sign locally
    with Xcode, or configure the protected GitHub signing workflow. Keep Apple
    credentials in Xcode/Keychain or the user's own CI secrets.
@@ -129,7 +130,7 @@ NFTs are not a promise that an app remains admitted forever.
 The goal stays open while screenshots or either NFT journey are unverified.
 Existing evidence: [Mac release checklist](README.md),
 [current shared-key user flow](user-flow.md), and
-[published release manifest](v0.1.0-rc.2.json), and
+[published release manifest](v0.1.0-rc.3.json), and
 [current acceptance audit](acceptance-audit.md).
 
 ## Implementation order

@@ -1,31 +1,37 @@
 # Mac release and TestFlight checklist
 
-Status: the Mac `v0.1.0-rc.2` candidate is Developer ID signed and notarized.
-The exact GUI completed a zero-argument launch, real App Attest enrollment and
-verified shared-key receipt on the separate Base Sepolia release network.
-The mini runs a persistent user-session seed; the HTTPS relay runs on the pod.
+Status: Mac `v0.1.0-rc.3` is the current admitted Assembly build. The exact
+Developer ID signed, notarized ZIP completed a live Base Sepolia shared-key
+exchange and restored the original participant account/NFT on restart. The
+persistent seed is on the same current build and epoch. RC2 is no longer admitted;
+existing users need the new app while preserving their app data and Keychain.
 
-Download the prerelease ZIP, extract **Node.app**, and open it on an Apple
-Silicon Mac running macOS 27 with Full Security and SIP enabled. It starts automatically. The window displays its
-state and verified receipt. Closing the window keeps the peer available in the
-menu bar; **Quit peer** stops it. No wallet, gas purchase, or configuration is needed.
-The [repository and release downloads](https://github.com/amiller/apple-attest-p2p/releases/tag/v0.1.0-rc.2) are public; no GitHub account is needed.
-See [source-history.md](source-history.md) for the privacy cleanup and commit mapping.
+[Download and first-run instructions](friend-guide.md) ·
+[RC3 release](https://github.com/amiller/apple-attest-p2p/releases/tag/v0.1.0-rc.3) ·
+[exact release verification](v0.1.0-rc.3.json).
 
-The clean-Mac Gatekeeper and visual interaction test is still required. The build
-mini has Gatekeeper disabled; a valid notarization ticket is not evidence of that
-independent install test. iOS/TestFlight distribution is not complete.
+Supported Macs require Apple silicon, macOS 27, Full Security and SIP enabled.
+No wallet, gas purchase or developer account is needed to join. New participants
+receive a receipt first; automatic Fold artwork publication is still pending.
+
+The signing Mac has Gatekeeper assessment disabled. Notarization and ticket
+validation do not establish an unassisted clean-Mac first-open experience.
+Independent-team builder acceptance and physical-iPhone/TestFlight acceptance
+remain separate outstanding work.
 
 ## Build without an Apple account
 
 On an Apple Silicon Mac with the exact Xcode/SDK/compiler in `toolchain.json`:
 
 ```sh
-python3 scripts/release/build_mac.py --gui --out build/unsigned
-python3 scripts/release/check_repro.py --gui --out build/repro
+python3 scripts/release/build_mac.py --gui --version 0.1.0 --build-number 4 --out build/unsigned
 ```
 
-Choose unused output directories. Set `DEVELOPER_DIR` to the matching Xcode when
+Choose an unused output directory. RC3 was compared across two clean source paths
+and module caches on one Mac. The generic `check_repro.py` and candidate workflow
+still default to build `3`; their default bundle metadata is not byte-identical
+to the RC3 build `4`. Independent-host RC3 reproduction remains unverified.
+ Set `DEVELOPER_DIR` to the matching Xcode when
 several are installed. The scripts fail on toolchain drift. They compile the
 native participant with optimization, a fixed module name, stable relative source
 names, path remapping and no code signature. No package downloads are needed.
@@ -44,7 +50,7 @@ GitHub run 37545040726 independently reproduced both unsigned bundle files;
 see `independent-build-20261006.json`. These measurements apply to commit
 `d827cfa` and its unchanged CLI build inputs.
 
-The released GUI is independently reproducible from clean source `ee74923` on
+Historical earlier GUI evidence (not RC3): the GUI was independently reproducible from clean source `ee74923` on
 GitHub and the mini, with unsigned executable SHA-256
 `56b618d28494cfefb4841261709ccd16a2f45b2a8dc27361d7099483b0f81c1f`.
 See `gui-independent-build-20261006.json` and `gui-build-manifest-20261006.json`.
@@ -53,8 +59,9 @@ Signing and stapling preserve that payload (`gui-payload-verification-20261006.j
 ## Fork and build with GitHub resources
 
 1. Fork [amiller/apple-attest-p2p](https://github.com/amiller/apple-attest-p2p)
-   and check out `v0.1.0-rc.2` when reproducing the admitted Mac app. `main`
-   contains later iPhone work and is not the current Mac admission baseline.
+   and check out `v0.1.0-rc.3` when reproducing the admitted Mac app. Use version
+   `0.1.0`, build `4`, and the tag’s exact toolchain. Do not substitute a later
+   `main` checkout or the generic workflow’s default build metadata.
 2. Enable Actions. `mac-build.yml` builds on `xcode-27` without Apple credentials.
    GitHub's image moves; the checked-in toolchain lock must still match. Change
    that lock only as a reviewed build input, then obtain fresh measurements.
@@ -243,7 +250,7 @@ Measured evidence is in `reproducibility-20261006.json`,
 `developer-id-appattest-20261006.json` records the separate Developer ID capture.
 Full private development packages remain on the mini and are not public artifacts.
 
-Current validation: 70 Python tests and all 42 contract tests passed, including
+Historical validation for the earlier milestone: 70 Python tests and all 42 contract tests passed, including
 three Developer ID tests and five epoch tests. Swift V1/V2 request hashes match
 independently generated ABI vectors. Generated iOS project regeneration is
 byte-identical. The first hosted unsigned CI job passed

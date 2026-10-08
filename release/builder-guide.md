@@ -1,8 +1,9 @@
 # Earn the independent-builder NFT
 
-**Preview status:** RC2 is published and its Level 1 NFT flow is verified on Base
-Sepolia. The independent-team upgrade is implemented but its live second-team
-acceptance run remains pending.
+**Preview status:** RC3 is the current Mac admission baseline. Its exact signed
+release reconnected on Base Sepolia and restored the existing participant receipt
+after restart. The independent-team upgrade is implemented, but a real second-team
+acceptance run remains pending. Update the original app to RC3 before this flow.
 
 You need a paid Apple Developer team different from the release publisher's,
 a supported Mac, the pinned Xcode toolchain, and permission to sign for that team.
@@ -12,7 +13,7 @@ Keychain, or protected GitHub environment. The app never asks you to enter them.
 ## 1. Save your participant invitation
 
 Open the original app and wait for your participant NFT to be confirmed. Choose
-**Developer upgrade… → Save invitation…**. Keep the original app installed and
+**Become an independent builder… → Save invitation…**. Keep the original app installed and
 its Keychain identity intact until the handoff has confirmed.
 
 The invitation contains public account/network information. It does not contain
@@ -20,8 +21,8 @@ your private key or authorize anyone to take control of the account.
 
 ## 2. Build and sign your own copy
 
-Fork this repository and check out tag `v0.1.0-rc.2` (app build source
-`adda809826358d2466b74a2f206c5921f75443a1`; see the [public commit mapping](source-history.md)). Keep executable source
+Fork this repository and check out tag `v0.1.0-rc.3` (app build source
+`6a3cca34f53a3cf8fe241aca4a8d8b3e0c76ef81`; see [release verification](v0.1.0-rc.3.json)). Keep executable source
 unchanged so the network can recognize the code. Use the exact `bundleId` saved in your invitation and create a matching explicit
 App ID and provisioning profile under your team. Set `APPLE_BUNDLE_ID` to that
 value. The identifier includes your personal NFT account address; a generic
@@ -35,11 +36,15 @@ hardware test uses category 3 on its separate Anvil network only.
 The unsigned build command is:
 
 ```sh
-python3 scripts/release/build_mac.py --gui --out build/my-unsigned \
+python3 scripts/release/build_mac.py --gui --version 0.1.0 --build-number 4 \
+  --out build/my-unsigned \
   --bundle-id "$APPLE_BUNDLE_ID"
 ```
 
-Use the release's version/build-number values when they are specified. Compare
+RC3 uses version `0.1.0` and build `4`. The current generic CI workflow defaults
+to build `3`, so set the exact values above for full-bundle comparison. RC3
+reproducibility was checked across two clean paths on one Mac, not independently
+on GitHub. Compare
 the unsigned executable with the release evidence. Your bundle identifier and
 signing identity deliberately change bundle/signature metadata; the executable
 payload must still match. Export/sign and notarize using the documented local
@@ -70,7 +75,7 @@ The original root relay endpoint serves the older shared-key release. Use the
 
 ## 4. Link the independently signed copy
 
-Open your signed app and let it connect. Choose **Developer upgrade… → Import
+Open your signed app and let it connect. Choose **Become an independent builder… → Import
 upgrade file…**, selecting the invitation from the original app. Save the request
 it creates. The app verifies that its current signing team is admitted, differs
 from the publisher, and signed the account-specific bundle identifier before

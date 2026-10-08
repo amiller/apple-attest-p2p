@@ -1,8 +1,16 @@
 # Assembly release admission plan
 
-Status: read-only plan, 2026-10-07. The Assembly candidate is tested on isolated
-Anvil. This document does not authorize or perform a production policy change.
-RC2 friends and the existing production seed remain on the current baseline.
+Status: RC3 cutover completed and verified on Base Sepolia at block 47831271.
+The exact signed ZIP’s measured code is admitted, the persistent seed serves
+epoch 1, and the operator’s existing Apple key/account/NFT survived reconnect and
+restart. Both original owners remained unchanged; nextId stayed 3. Relay writes
+resumed with no pending transactions. See [release verification](v0.1.0-rc.3.json).
+RC2 is no longer admitted; friends must install RC3 without deleting saved state
+or Keychain entries. No new NFT contract or personal-account factory was used.
+
+The plan and engineering constraints below are retained for the next update.
+They describe the gates rehearsed before this cutover, not an outstanding request
+for approval. Clean friend first-open and independent-team acceptance remain open.
 
 ## Why installing the new UI is not enough
 
@@ -94,8 +102,9 @@ shared private key just to bridge the update.
 Prepare a journal of the exact old baseline arguments, registrations, seed
 bundle/configuration and public account/receipt facts. Pause sponsor writes and
 reconcile the transaction queue before any owner operation; use the existing
-nonce journal. Verify the new seed's fresh key receipt before resuming sponsorship
-and giving friends the update.
+nonce journal. Finish and reconcile owner transactions, then resume sponsorship so the new
+seed can bootstrap through the relay. Verify its fresh key receipt before giving
+friends the update.
 
 Rollback means restoring the old baseline and signed seed with verified enrollment
 state. Old registrations should become visible again when the identical old build
@@ -103,7 +112,7 @@ ID is restored; prove this on Anvil first. Epochs cannot be decremented. If the
 commitment changed, rollback needs another explicit epoch/bootstrap and verified
 old-build participants. Restoring a JSON file alone does not restore network state.
 
-## Gate for a public release
+## Pre-cutover gates (retained for subsequent updates)
 
 Do not disrupt existing friends to ship visual polish. Either complete an agreed,
 rehearsed maintenance update with working rollback, or first design a compatibility
@@ -121,10 +130,26 @@ A release requires:
 - Accurate artwork behavior: current bundled images are only the two verified
   historical public receipts. Unknown/new receipts show no borrowed Fold. An
   automatic renderer/publisher is still needed for new participant artwork.
-- A friend-facing update note and one working download. Until these gates pass,
-  keep the candidate isolated and RC2's current admission intact.
+- A friend-facing update note and one working download. Keep future candidates
+  isolated until their production admission and continuity gates pass. The RC3
+  prerelease still explicitly lacks clean friend first-open and independent-team
+  end-to-end acceptance; these are not represented as completed by this cutover.
 
 Relevant source: `contracts/src/CDRegistry.sol`, `AppleAttestRegistryV1.sol`,
 `AppleAttest.sol`, `application/DemoV1.sol`, `application/DemoV2.sol`,
 `application/ResearchBadges.sol`, `application/PersonalBadgeAccount.sol`, and
 `node/shared/{Node,PersonalAccount,BadgeClaim,Upgrade}.swift`.
+
+## Follow-up: retryable sponsor requests
+
+A participant reads the shared sponsor’s application-request nonce before Apple
+creates the assertion. Concurrent participants can race that nonce, producing a
+retryable HTTP503. The GUI rebuilds the request and recovered in the observed
+run; this was not an account-ownership failure. A serialized request/nonce path
+is follow-up engineering work. Do not promise an instant or retry-free join.
+
+The isolated registry rehearsal executed RC2→RC3→RC2→RC3 and restored the
+previous registrations without re-registering them. Epoch rollback behavior was
+checked as monotonic; no production rollback was needed. The live cutover changed
+only shared scope 0 from epoch 0 to 1; empty Mac/iPhone category scopes were left
+unchanged.

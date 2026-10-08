@@ -1,8 +1,9 @@
 # Fold — porcelain and vermilion
 
-A procedural art prototype for the existing research NFT. **This image is not
-currently returned by the deployed NFT's `tokenURI`.** It does not change NFT
-ownership, admission, or account keys.
+Procedural artwork for the research NFT. The reissued main collection now
+returns these images for the two existing participant tokens. The original
+receipt contract remains text-only and continues to enforce admission and
+account policy. See [main collection](../../release/main-collection.md).
 
 ![Gabe's participant token 2, rendered from its public identity](gabe-token-2.png)
 
@@ -61,14 +62,16 @@ The mesh and material integration uses [Mitsuba's documented mesh loading](https
 and [rough-plastic materials](https://mitsuba.readthedocs.io/en/v3.6.3/src/generated/plugins_bsdfs.html).
 No third-party app executable or Darkbloom fixture is involved.
 
-## Integration still to do
+## Integration status
 
-The deployed receipt contract has fixed text-only metadata. Displaying this image
-in the app can preserve that original receipt. Making wallets/explorers display
-it requires an explicit metadata/companion-token design; adding a PNG to this
-repository does not accomplish that. Level 2 artwork and its relationship to the
-parent receipt also remain a design task. This prototype does not mint a token,
-replace a contract, or fabricate builder success.
+The main artwork collection is deployed; tokens 1 and 2 have their matching
+images in metadata. Those two images are bundled in the Assembly Mac candidate.
+Artwork for later participants still requires an explicit render, immutable
+image publication, and artwork-registration/issuance transaction. The existing
+publisher requires coordinated sponsor maintenance and transaction-journal
+reconciliation; it is not a continuous or crash-resumable rendering worker.
+Do not promise an immediate image to every new participant. Level 2 artwork and
+its relationship to the parent receipt remain a design task.
 
 The first full-size render completed, but its manifest attempt raced the default
 asynchronous PNG save. The PNG and geometry were retained and checked; the

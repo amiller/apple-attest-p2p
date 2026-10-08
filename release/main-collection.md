@@ -55,10 +55,10 @@ Artwork is not frozen, allowing refinement without another contract replacement.
 ## Integration status
 
 The main collection is deployed and both existing tokens have artwork; the
-[verification record](main-collection-deployment.json) records the checked block. Existing released apps still open the old receipt explorer
-link. A subsequent app release must display the artwork collection separately
-from the pinned receipt policy. Updating an executable requires admitting its
-new measured code before it can join the existing network.
+[verification record](main-collection-deployment.json) records the checked block. RC3 displays the matching bundled image and opens the main artwork collection
+for original receipts 1 and 2. Other receipts still open their original receipt
+page. The original receipt policy and factory remain unchanged. The RC3 measured
+code is now the admitted Mac baseline; RC2 users need to update.
 
 Future claimants also need artwork rendered, published and issued. The helper's
 `--collection` mode supports additional receipts. A continuously operated render

@@ -1,5 +1,22 @@
 # Assembly acceptance scope
 
+## Current release: RC3
+
+The exact signed/notarized RC3 ZIP is admitted on Base Sepolia. At verified block
+47831271, the seed and participant used the RC3 code, epoch 1 key-receipt transactions
+succeeded, the original account/token was restored after restart, both original
+owners were unchanged, and nextId remained 3. Relay writes were resumed with an
+empty pending queue. The actual ordinary app displays Fold 001 for the existing
+operator receipt. See [sanitized release verification](v0.1.0-rc.3.json).
+
+RC2 is no longer admitted. Existing users must replace the app while preserving
+saved state and Keychain items. New participant artwork automation, clean friend
+Gatekeeper first-open, and a real independent-team upgrade remain unverified.
+The recorded Assembly videos below describe earlier isolated test candidates;
+they are not recordings of this production cutover.
+
+## Earlier isolated acceptance evidence
+
 The 17-screen journey is a design prototype. The native Assembly work implements
 a subset of that experience; a polished mockup is not evidence that enrollment,
 independent signing or first installation succeeded. This matrix records the
@@ -53,10 +70,11 @@ kept its verified peer key while the claim was pending.
 
 ## Release boundary
 
-The Assembly candidate is not admitted to the current public network. The
+At the time of these isolated recordings, the Assembly candidate was not yet
+admitted to the public network. The
 existing registry permits one approved code baseline; replacing that baseline
-would stop admitting the RC2 binary. Public deployment therefore needs a
-coordinated compatibility/cutover plan that preserves the original factory and
+would stop admitting the RC2 binary. Public deployment therefore required a
+coordinated cutover plan that preserves the original factory and
 personal-account key namespace. This local acceptance run does not by itself validate
 that public cutover. The persistent public peer remains separate.
 

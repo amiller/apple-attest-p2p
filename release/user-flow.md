@@ -1,17 +1,19 @@
 # Sample app first-run contract
 
-This is the release acceptance specification. The Mac GUI now implements automatic
+This is the target release acceptance specification; the table includes planned
+states rather than claiming that every rejection/preflight screen is implemented.
+The currently admitted download is [RC3](friend-guide.md). The Mac GUI now implements automatic
 connection, key receipt, persistent participation, menu-bar status and retry
-delays capped at 60 seconds. RC2 can still retry permanent Apple errors; it does
+delays capped at 60 seconds. RC3 can still retry permanent Apple errors; it does
 not yet implement all rejection/preflight states in the table below. Isolated real-device tests cover restart and onward exchange; the clean
 Mac, visual layout, launch-at-login preference and iOS flow remain release gates.
 
 Supported Macs require Apple silicon, macOS 27, Full Security, and SIP enabled.
 Apple documents the key policy in its
 [App Attest overview](https://developer.apple.com/videos/play/wwdc2026/201/?time=671).
-The next Mac release should state these prerequisites before reporting generic
+Further Mac work should state these prerequisites before reporting generic
 attestation failure, preserve existing identities, and stop repeated terminal
-Apple failures with one shareable diagnostic. RC2 users should follow the
+Apple failures with one shareable diagnostic. Users should follow the
 [friend guide](friend-guide.md) if they encounter repeated errors.
 
 Opening the app begins enrollment automatically. No network chooser, configuration
@@ -31,8 +33,9 @@ identity and compatible protocol/policy; operational HTTPS endpoints are publish
 | Rejected | This build isn't admitted | Stop authorization; show release/update details |
 | Unsupported | This device doesn't support this testnet | Explain macOS/iOS 27 evidence requirement |
 
-The main window shows network name, shared-key receipt, peer count, last
-verified exchange and current state. Technical details expose code identity,
+The current Assembly window shows the shared-key receipt, NFT confirmation and
+current state. The target experience also includes peer count and last verified
+exchange. Technical details expose code identity,
 signer, policy, transaction IDs and explicit RPC/admin trust. Logs and agent JSON
 status report the same state, not guessed UI progress.
 
