@@ -1,4 +1,8 @@
-# Mac visual journey
+# Mac visual journey — Assembly
+
+The selected Assembly direction uses oversized sans-serif typography, ivory and ink,
+vermilion edition numbers and cobalt network cues. Real Fold artwork leads the
+reward screens; consent and failure states stay restrained and readable.
 
 This is a proposed interface, not the released application. Its 17 screens walk
 through acquisition, first open, verification, peer exchange, artwork preparation,
@@ -20,7 +24,7 @@ under the implementation disclosure, rather than used as proposed design.
 All 17 screens were captured in an isolated Chromium browser and checked for
 horizontal overflow at 1360px and 390px. Navigation, screen buttons, chapter
 selection and arrow keys were checked. This is prototype validation, not native
-Mac acceptance testing. PNG captures remain under `build/visual-journey-review/`.
+Mac acceptance testing. PNG captures remain under `build/assembly-journey-review/`.
 
 The report is published with the existing dstack report publisher's `--interactive`
 flag, which allowlists the SHA-256 hash of the embedded script. Do not publish it
