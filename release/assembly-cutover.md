@@ -45,7 +45,8 @@ this update must not bypass the handoff checks.
 
 The isolated tests demonstrated both fresh enrollment recovering the same account
 and an in-place update retaining the existing App Attest key. In the latter,
-[the recorded verification](../data/assembly-native-20261007/in-place-verification.json)
+the local verification record
+(`data/assembly-native-20261007/in-place-verification.json`, not a public download)
 shows a changed admitted CDHash, unchanged key/member/account, successful new
 assertions, token #1 reused and unchanged `nextId = 2`. No new Apple key was
 created. These were two instrumented candidates on Anvil, not an RC2 friend’s
