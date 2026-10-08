@@ -1,3 +1,9 @@
+> Current fixture policy (2026-10-07): the historical third-party binary fixtures
+> mentioned below have been removed. Tests now use our own node/probe executables
+> and explicitly synthetic identity variants. See
+> `contracts/fixtures/resign/README.md`. Historical observations below are not
+> claims of current test coverage or a completed independent-team device run.
+
 # Apple p2p network: build plan (2026-10-05)
 
 Goal: iPhone (iOS 27) + Mac mini (macOS 27) run one open-source node app; a Base Sepolia contract admits a node by the Apple-signed CDHash in App Attest, looked up in a CodeDirectory registry that any team may register re-signed copies in. Nodes then talk to each other directly. Inputs: `notes/apple-p2p-network-gap-inventory-2026-10-05.md`, `notes/ios-pre27-cdhash-infeasibility-2026-10-05.md`, code under `ios-app-attest/`. Facts below marked "measured today" were decoded from `iphone-20260923/captures/papi-20260923-snapshot.sqlite` and `solidity/fixtures/*.json` while writing this.
@@ -38,7 +44,7 @@ iPhone leaf (measured today): same CA 1 issuer, same EKU, same nonce format; OID
   - Record `rpIdHash[cdhash] = sha256(teamID ‖ "." ‖ identifier)` from `identOffset` (hdr 0x14) and `teamOffset` (hdr 0x30), NUL-terminated. Ad hoc CDs have `teamOffset == 0` → revert `"no team"` (they cannot App Attest anyway). For our App ID this equals the observed rp `90a07dc6…` (checked today: `sha256("DC9JH5DRMY.dev.dsmack.provider")`). Caveat recorded in the file: App ID prefix == team ID is assumed; true for this team.
   - Pin header fields that a re-signer controls: `keccak(cd[0x08:0x10] ‖ cd[0x24:0x28] ‖ cd[0x40:hdrEnd])` (version, flags incl. hardened-runtime bit, hashSize/type/platform/pageSize, execSeg*, runtime when version ≥0x20500; hdrEnd 0x58 or 0x60 by version) equals the approved value; `nSpecialSlots` and special slot −1 (Info.plist) equal the approved. Slots −2/−3/−5/−7 stay free (signer-dependent). `isAdmitted` stays.
   - Constructor args come from `scripts/cd_args.py <signed Mach-O>` (uses `macho_pages.cd_of` + the `mask()` scan from `cross_signer.py`) → JSON `{rest, maskedPage0, header, infoSlot, codeLimit, linkeditCmd, codeSigCmd}`.
-- Fixtures: pull the Darkbloom cross-team pair from `mini-mesh:~/agent-drop/cd-crossteam-20261005/` and extract `.cd/.page0` → `fixtures/resign/darkbloom-eigen.*`, `darkbloom-ours.*` (5,384 slots, ~172 KB CD). Real two-team data: Developer ID (Eigen, SLDQ2GJ6TL) and Apple Development (ours).
+- Fixtures: use our node/probe signed and re-signed executables for binary-layout tests; generate labeled synthetic identity variants with `scripts/make_identity_test_fixtures.py`. A real independent-team App Attest run remains required.
 - Accept: `CDRegistry.t.sol`: A–I admitted, M rejected (unchanged); flags bit flipped → `"header"`; Info.plist slot changed → `"info"`; `rpIdHash` for A = `90a07dc6…`; Darkbloom registry with Eigen approved admits both, `rpIdHash` differ and equal `sha256("SLDQ2GJ6TL.<ident>")` / `sha256("DC9JH5DRMY.<ident>")`; gas logged (expect ≈7.5M for Darkbloom).
 
 ### 4. `AppleAttestRegistryV1` adapter (multi-team in code)
@@ -112,7 +118,7 @@ Rough effort: steps 1–5 ≈ 2.5 days, 6–8 ≈ 2.5 days, 9 ≈ 0.5 day plus g
 ## Status 2026-10-06 (evidence: `data/p2p-run-20261006/RESULTS.md`)
 - [x] 1 AppleAuthData iOS profile, 2 AppleLeaf per-class ACL (done before import; tests green).
 - [x] 3 CDRegistry, REVISED: Info.plist slot and nSpecialSlots pins removed (they rejected real re-signs D/E/G/I and the Darkbloom pair). Pinned now: code slots, masked page 0, CD header, DER entitlements key set with identity values (application-identifier, team-identifier, keychain-access-groups) free. RP ID = sha256(application-identifier), so the App ID prefix == team ID assumption is gone. `registerBuild(cd, page0, entDer)`. This also covers step 10's entitlement pin (no explicit `get-task-allow` rule: an added key changes the key set and is rejected).
-- [x] 4 AppleAttestRegistryV1. Second-team test uses the real Darkbloom pair (Eigen Developer ID vs our team-substituted re-sign), not a synthetic CD.
+- [x] 4 AppleAttestRegistryV1. CDHash/RP lookup isolation uses explicitly synthetic identities on our own node fixture. This is not a second-team Apple signature or attestation test.
 - [x] 5 Deploy script + Network.t.sol; deployed to anvil and Base Sepolia, all 7 contracts verified on Basescan. Earlier hang = registerBuild gas below the EIP-7623 floor; deploy with `--gas-estimate-multiplier 200`.
 - [x] 6 Shared node code (`node/shared`), Mac CLI (`node/mac`), relay transport instead of Bonjour.
 - [x] 7 Relay (`node/relay/relay.py`): gas sponsor + mailbox; reverts → HTTP 500 with reason.

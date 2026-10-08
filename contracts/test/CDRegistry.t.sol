@@ -120,23 +120,31 @@ contract CDRegistryTest is Test {
         (cd, page0, ent) = json("iphone-modified");
         vm.expectRevert("code slots"); r.registerBuild(cd, page0, ent);
     }
-    /// Real cross-team pair: Eigen Labs' Developer ID build of Darkbloom (SLDQ2GJ6TL) and our
-    /// Apple Development re-sign of the same file (DC9JH5DRMY) with team-substituted entitlements.
-    function test_darkbloomCrossTeam() public {
-        CDRegistry r = jsonRegistry("darkbloom-eigen");
-        (bytes memory cd, bytes memory page0, bytes memory ent) = json("darkbloom-eigen");
-        bytes32 h = r.registerBuild(cd, page0, ent);
-        emit log_named_uint("darkbloom-eigen registerBuild exec gas", vm.lastCallGas().gasTotalUsed);
-        assertEq(r.rpIdHash(h), sha256("SLDQ2GJ6TL.io.darkbloom.provider"));
-        assertEq(r.teamIdHash(h), 0); // This older build has no explicit team entitlement.
-        (cd, page0, ent) = json("darkbloom-ours-ent");
-        bytes32 o = admit(r, cd, page0, ent);
-        assertTrue(o != h);
-        assertEq(r.rpIdHash(o), sha256("DC9JH5DRMY.io.darkbloom.provider"));
-        assertEq(r.teamIdHash(o), 0); // Do not infer a team from an App ID prefix.
-        // Same file re-signed without entitlements: no app-attest opt-in, network or push entitlements.
-        (cd, page0, ent) = json("darkbloom-ours");
-        vm.expectRevert("entitlements slot"); r.registerBuild(cd, page0, ent);
+    /// Synthetic identity metadata on our own node; not Apple-signed second-team evidence.
+    function test_syntheticTeamIdentity() public {
+        CDRegistry r = jsonRegistry("node-honest");
+        (bytes memory cd, bytes memory page0, bytes memory ent) = json("node-honest");
+        bytes32 original = admit(r, cd, page0, ent);
+        (cd, page0, ent) = json("node-synthetic-team");
+        bytes32 changed = admit(r, cd, page0, ent);
+        assertTrue(changed != original);
+        assertEq(r.rpIdHash(original), OURS);
+        assertEq(r.teamIdHash(original), sha256("DC9JH5DRMY"));
+        assertEq(r.rpIdHash(changed), sha256("TESTTEAM01.dev.dsmack.provider"));
+        assertEq(r.teamIdHash(changed), sha256("TESTTEAM01"));
+    }
+    function test_missingTeamIsNotInferredFromAppPrefix() public {
+        CDRegistry r = jsonRegistry("node-synthetic-prefix-only");
+        (bytes memory cd, bytes memory page0, bytes memory ent) = json("node-synthetic-prefix-only");
+        bytes32 original = admit(r, cd, page0, ent);
+        (cd, page0, ent) = json("node-synthetic-prefix-only-other");
+        bytes32 changed = admit(r, cd, page0, ent);
+        assertTrue(changed != original);
+        assertEq(r.rpIdHash(original), OURS);
+        assertEq(r.rpIdHash(changed), sha256("TESTTEAM01.dev.dsmack.provider"));
+        assertEq(r.teamIdHash(original), 0);
+        assertEq(r.teamIdHash(changed), 0);
+        vm.expectRevert("entitlements slot"); r.registerBuild(cd, page0, hex"");
     }
     /// The live-run node builds (data/p2p-run-20261006/builds): B = `codesign --force --signature-size 20000` of A.
     function test_nodeBuilds() public {

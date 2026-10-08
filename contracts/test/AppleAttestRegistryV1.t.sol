@@ -83,13 +83,13 @@ contract AppleAttestRegistryV1Test is Test {
     }
     function withBuild(bytes memory a,bytes32 rp,bytes32 cdhash) internal pure returns(bytes memory){assembly{mstore(add(a,32),rp) mstore(add(a,94),cdhash)}return a;}
     function jb(string memory j,string memory k) internal pure returns(bytes memory){return vm.parseJsonBytes(j,k);}
-    /// Real cross-team pair (Eigen Developer ID build of Darkbloom, our re-sign): each CDHash resolves only to its own team's RP ID.
-    function test_SecondTeamLookup() public {
+    /// Synthetic metadata on our node: CDHash/RP lookup isolation only, no Apple signature proof.
+    function test_SyntheticTeamLookup() public {
         mac(true);bytes memory a=vm.parseJsonBytes(fixture,".assert.auth");
-        string memory e=vm.readFile("fixtures/resign/darkbloom-eigen.json");string memory o=vm.readFile("fixtures/resign/darkbloom-ours-ent.json");
+        string memory e=vm.readFile("fixtures/resign/node-honest.json");string memory o=vm.readFile("fixtures/resign/node-synthetic-team.json");
         cds=new CDRegistry();cds.setBuild(jb(e,".cd"),jb(e,".page0"),jb(e,".ent"),vm.parseJsonUint(e,".linkeditCmd"),vm.parseJsonUint(e,".codeSigCmd"));
         bytes32 eh=cds.registerBuild(jb(e,".cd"),jb(e,".page0"),jb(e,".ent"));bytes32 oh=cds.registerBuild(jb(o,".cd"),jb(o,".page0"),jb(o,".ent"));
-        bytes32 erp=sha256("SLDQ2GJ6TL.io.darkbloom.provider");bytes32 orp=sha256("DC9JH5DRMY.io.darkbloom.provider");
+        bytes32 erp=sha256("DC9JH5DRMY.dev.dsmack.provider");bytes32 orp=sha256("TESTTEAM01.dev.dsmack.provider");
         Lookup l=new Lookup(cds,aaguid);
         l.check(withBuild(a,erp,eh));l.check(withBuild(a,orp,oh));
         vm.expectRevert("build not admitted");l.check(withBuild(a,erp,oh));
