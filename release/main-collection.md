@@ -22,6 +22,18 @@ updated by the collection owner until explicitly frozen. Freezing makes the URI
 and hashes immutable, not the availability of an external image host. Images
 are not stored on chain. Tokens cannot be issued before their art is registered.
 
+## Live collection
+
+[Main collection on Base Sepolia](https://sepolia.basescan.org/token/0xc3da5f4d5013dD6fB4a16EF3ace0C0F9e1F8C1Ed)
+
+Tokens 1 and 2 have been issued to their original owners. Gabe's
+[token 2](https://sepolia.basescan.org/token/0xc3da5f4d5013dD6fB4a16EF3ace0C0F9e1F8C1Ed?a=2)
+contains the image below in its on-chain metadata. He does not need to claim again.
+See the [deployment and verification record](main-collection-deployment.json).
+Artwork is not frozen, allowing refinement without another contract replacement.
+
+![Gabe's Fold, generated from receipt 2](../artwork/fold/gabe-token-2.png)
+
 ## Publication procedure
 
 1. Run `forge test --root contracts` and render/inspect artwork from public receipt
@@ -42,8 +54,8 @@ are not stored on chain. Tokens cannot be issued before their art is registered.
 
 ## Integration status
 
-The collection contract and publication helper are implemented; deployment is
-recorded separately. Existing released apps still open the old receipt explorer
+The main collection is deployed and both existing tokens have artwork; the
+[verification record](main-collection-deployment.json) records the checked block. Existing released apps still open the old receipt explorer
 link. A subsequent app release must display the artwork collection separately
 from the pinned receipt policy. Updating an executable requires admitting its
 new measured code before it can join the existing network.

@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import time
 import urllib.request
 
 from eth_account import Account
@@ -96,7 +97,11 @@ def main():
             with urllib.request.urlopen(a.relay.rstrip('/') + '/status', timeout=30) as r:
                 status = json.load(r)
             assert status['sponsorWritesPaused'] is True and status['pending'] == [], 'pause and drain relay first'
-        assert w3.eth.get_transaction_count(admin, 'latest') == w3.eth.get_transaction_count(admin, 'pending'), 'pending sponsor nonce'
+        # Base RPC may expose a receipt before its latest nonce view catches up.
+        deadline = time.monotonic() + 30
+        while w3.eth.get_transaction_count(admin, 'latest') != w3.eth.get_transaction_count(admin, 'pending'):
+            assert time.monotonic() < deadline, 'pending sponsor nonce; reconcile journal'
+            time.sleep(2)
     maintenance()
     atomic_json(journal, plan)
     def send(fn):
@@ -117,6 +122,9 @@ def main():
                      blockNumber=receipt['blockNumber'], contractAddress=receipt['contractAddress'])
         atomic_json(journal, plan)
         assert receipt['status'] == 1, 'transaction reverted; inspect journal'
+        # Allow Base's sequencer/RPC latest-state views to converge before reads.
+        if chain == 84532:
+            time.sleep(4)
         return receipt
     if not collection:
         address = send(factory.constructor(source, admin))['contractAddress']

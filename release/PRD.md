@@ -213,3 +213,15 @@ The remaining design work includes the Level 2 relationship to its parent art
 and the explicit path for displaying artwork in wallets without misrepresenting
 or replacing existing historical receipts. Artistic variation does not indicate
 trust, rarity, uptime, a unique human or a permanently unique physical device.
+
+
+### Main collection publication — 2026-10-07
+
+The selected Fold direction is now published in the main **Attest Testnet Research
+Badges** collection, without a version label. Both existing participant tokens
+have images in their on-chain metadata, at the same IDs and owners as the original
+receipts. The [collection handoff](main-collection.md) includes the live links,
+image, source and verification evidence. Original receipts remain the claim and
+account-consent engine. This does not complete the app artwork journey: RC2 still
+opens the original receipt, and future claims still require artwork publication
+until an automatic renderer/publisher is operated.

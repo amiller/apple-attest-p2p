@@ -13,13 +13,14 @@ On a supported Apple silicon Mac running macOS 27 with Full Security, open the
 app and keep it running. It joins the research testnet and claims a participant
 NFT automatically; no wallet setup or payment is required.
 
+- [Main Fold collection and existing participants’ artwork](release/main-collection.md)
 - [What the app does and what it proves](release/PRD.md)
 - [First-run flow and troubleshooting](release/user-flow.md)
 - [Build/sign with your own Developer team for Level 2](release/builder-guide.md)
 - [iPhone/TestFlight status and testing evidence](release/iphone-simulator-validation.md)
 
 The independent-team handoff still needs a positive hardware acceptance run.
-iPhone build 4 has been uploaded to TestFlight, but tester access and installed
+iPhone build 5 has been uploaded to TestFlight, but tester access and installed
 code admission are not yet verified. See [source-history notes](release/source-history.md)
 when comparing original build-manifest commit IDs with this public history.
 

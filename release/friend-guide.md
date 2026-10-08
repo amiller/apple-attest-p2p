@@ -25,6 +25,12 @@ unverified.
 4. Choose **View NFT receipt** to inspect your testnet souvenir. Closing the window
    leaves your peer running; Quit stops it. Reopening restores your existing NFT.
 
+The main collection now includes **Fold**, a porcelain-and-vermilion sculpture
+for each of the two existing participants. Their token numbers and owners are
+preserved; no second claim is needed. [View the main collection and artwork](main-collection.md).
+RC2's **View NFT receipt** still opens the original attestation receipt. Artwork
+for subsequent participants is not yet automatically published.
+
 If it stays on “Verifying this app” or repeats the same Apple error, choose
 **Show technical details**, then use **Save status image…** in the Testnet menu.
 Send that image and, if possible, the visible error text to the person coordinating
